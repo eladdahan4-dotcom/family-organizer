@@ -7,6 +7,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.familyorganizer.app"
+    },
     "android": {
       "package": "com.familyorganizer.app",
       "adaptiveIcon": {
@@ -27,7 +30,8 @@
       [
         "expo-share-intent",
         {
-          "androidIntentFilters": ["text/*", "image/*"]
+          "androidIntentFilters": ["text/*", "image/*"],
+          "disableIOS": true
         }
       ],
       [
