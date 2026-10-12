@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // A family's board can be opened only by someone who knows its 20-character code.
+    // Nobody can list all families.
+    match /families/{fam} {
+      allow get, create, update: if fam.size() == 20;
+      allow list, delete: if false;
+
+      match /{sub}/{id} {
+        allow read, write: if fam.size() == 20
+          && (sub == "tasks" || sub == "shop")
+          && exists(/databases/$(database)/documents/families/$(fam));
+      }
+    }
+  }
+}

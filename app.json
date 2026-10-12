@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "לוח המשפחה",
+    "slug": "family-organizer",
+    "scheme": "familyboard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.familyorganizer.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F6E63"
+      },
+      "permissions": ["POST_NOTIFICATIONS", "SCHEDULE_EXACT_ALARM"]
+    },
+    "web": {
+      "name": "לוח המשפחה",
+      "shortName": "לוח המשפחה",
+      "lang": "he",
+      "themeColor": "#0F6E63",
+      "backgroundColor": "#EDF1EF",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*", "image/*"]
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "האפליקציה צריכה גישה לתמונות כדי לקרוא הודעות מהגן ומבית הספר.",
+          "cameraPermission": "האפליקציה צריכה גישה למצלמה כדי לצלם דפים מהגן ומבית הספר."
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}
