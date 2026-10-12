@@ -3,6 +3,7 @@ name: Build app
 # Every push to main builds:
 #  - the Android app (APK) and publishes it as the latest release
 #  - the web version (iPhone / computer) on GitHub Pages
+# If a build fails, its log is saved to the branch "build-logs" for troubleshooting.
 on:
   push:
     branches: [main]
@@ -21,31 +22,47 @@ env:
   BASE_URL: /${{ github.event.repository.name }}
   WEB_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
+defaults:
+  run:
+    shell: bash -o pipefail {0}
+
 jobs:
   web:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install --legacy-peer-deps
+      - name: Install
+        run: npm install --legacy-peer-deps 2>&1 | tee -a $RUNNER_TEMP/build.log
       - name: Align Expo package versions
-        run: npx expo install --fix -- --legacy-peer-deps
+        run: (npx expo install --fix 2>&1 || echo "expo install --fix failed, continuing") | tee -a $RUNNER_TEMP/build.log
       - name: Type check (report only)
-        run: npx tsc --noEmit || true
+        run: (npx tsc --noEmit 2>&1 || true) | tee -a $RUNNER_TEMP/build.log
       - name: Export web
-        run: npx expo export -p web --output-dir dist
+        run: npx expo export -p web --output-dir dist 2>&1 | tee -a $RUNNER_TEMP/build.log
       - run: cp dist/index.html dist/404.html && touch dist/.nojekyll
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+      - name: Save log on failure
+        if: failure()
+        run: |
+          cp $RUNNER_TEMP/build.log /tmp/web.log || echo "no log" > /tmp/web.log
+          git config user.name "build-bot" && git config user.email "build-bot@users.noreply.github.com"
+          git fetch origin build-logs && git checkout build-logs || git checkout --orphan build-logs
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          tail -c 400000 /tmp/web.log > web.log
+          git add web.log && git commit -m "web log ${{ github.run_number }}" && git push -f origin HEAD:build-logs
+
+  deploy-web:
+    needs: web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
 
@@ -61,14 +78,15 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - run: npm install --legacy-peer-deps
+      - name: Install
+        run: npm install --legacy-peer-deps 2>&1 | tee -a $RUNNER_TEMP/build.log
       - name: Align Expo package versions
-        run: npx expo install --fix -- --legacy-peer-deps
+        run: (npx expo install --fix 2>&1 || echo "expo install --fix failed, continuing") | tee -a $RUNNER_TEMP/build.log
       - name: Generate Android project
-        run: npx expo prebuild -p android --no-install --clean
+        run: npx expo prebuild -p android --no-install --clean 2>&1 | tee -a $RUNNER_TEMP/build.log
       - name: Build APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a 2>&1 | tee -a $RUNNER_TEMP/build.log
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk family-board.apk
       - uses: softprops/action-gh-release@v2
@@ -80,3 +98,14 @@ jobs:
             קישור קבוע לגרסה האחרונה: https://github.com/${{ github.repository }}/releases/latest/download/family-board.apk
           files: family-board.apk
           make_latest: true
+      - name: Save log on failure
+        if: failure()
+        run: |
+          cp $RUNNER_TEMP/build.log /tmp/android.log || echo "no log" > /tmp/android.log
+          git config user.name "build-bot" && git config user.email "build-bot@users.noreply.github.com"
+          sleep 20
+          git fetch origin build-logs && git checkout -f build-logs || git checkout -f --orphan build-logs
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          grep -nE "error|Error|ERROR|FAILURE|What went wrong|failed" /tmp/android.log | tail -300 > android-errors.log || true
+          tail -c 300000 /tmp/android.log > android.log
+          git add android.log android-errors.log && git commit -m "android log ${{ github.run_number }}" && (git push origin HEAD:build-logs || (git pull --rebase origin build-logs && git push origin HEAD:build-logs))
