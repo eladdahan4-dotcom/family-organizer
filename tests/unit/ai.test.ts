@@ -49,8 +49,8 @@ describe("extract() talks to Gemini correctly", () => {
     [429, "quota"],
     [403, "setup"],
     [500, "other"],
-  ])("HTTP %s is reported as %s", async (status, kind) => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(httpError(status as number));
+  ])("HTTP %s from every model is reported as %s", async (status, kind) => {
+    (global.fetch as jest.Mock).mockResolvedValue(httpError(status as number));
     await expect(extract("x")).rejects.toMatchObject({ kind });
   });
 
@@ -63,6 +63,21 @@ describe("extract() talks to Gemini correctly", () => {
     const urls = (global.fetch as jest.Mock).mock.calls.map((c) => c[0]);
     expect(urls[0]).toContain("/models/" + AI_MODELS[0] + ":");
     expect(urls[1]).toContain("/models/" + AI_MODELS[1] + ":");
+  });
+
+  test("daily quota on the first model (429) falls back to the next model", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(httpError(429, "GenerateRequestsPerDayPerProjectPerModel-FreeTier"))
+      .mockResolvedValueOnce(geminiReply({ tasks: [], shopping: [{ name: "חלב", qty: "" }] }));
+    const r = await extract("x");
+    expect(r.shopping[0].name).toBe("חלב");
+    expect(r.model).toBe(AI_MODELS[1]);
+  });
+
+  test("a server error does not waste the other model's quota", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(httpError(500));
+    await expect(extract("x")).rejects.toMatchObject({ kind: "other" });
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(1);
   });
 
   test("if every model is unavailable it is reported as setup", async () => {

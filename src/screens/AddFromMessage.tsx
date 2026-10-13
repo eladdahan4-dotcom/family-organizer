@@ -93,7 +93,7 @@ export default function AddFromMessage({
       const kind = e instanceof AiError ? e.kind : "other";
       setMsg(
         kind === "quota"
-          ? "הגעתם למגבלת השימוש בחילוץ החכם. נסו שוב בעוד כמה דקות."
+          ? "הגעתם למגבלת השימוש היומית החינמית בחילוץ החכם. היא מתאפסת כל יום בסביבות 10:00 בבוקר. בינתיים אפשר להוסיף משימות ידנית."
           : kind === "network"
           ? "אין חיבור לאינטרנט. נסו שוב."
           : kind === "setup"

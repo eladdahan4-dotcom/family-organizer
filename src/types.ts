@@ -26,6 +26,7 @@ export type ShopItem = {
 export type Extracted = {
   tasks: { title: string; date: string; time: string; cat: Cat; pick?: boolean }[];
   shopping: { name: string; qty: string; pick?: boolean }[];
+  model?: string;
 };
 
 export const CAT_LABEL: Record<Cat, string> = {

@@ -175,11 +175,11 @@ describe("adding from a message", () => {
   });
 
   test.each([
-    ["quota", { ok: false, status: 429, text: async () => "{}" }, "הגעתם למגבלת השימוש בחילוץ החכם. נסו שוב בעוד כמה דקות."],
+    ["quota", { ok: false, status: 429, text: async () => "{}" }, /^הגעתם למגבלת השימוש היומית החינמית/],
     ["setup", { ok: false, status: 403, text: async () => "PERMISSION_DENIED" }, /^החילוץ החכם לא מופעל בפרויקט Firebase/],
     ["server", { ok: false, status: 500, text: async () => "oops" }, /^החילוץ לא הצליח\. נסו שוב\./],
   ])("error: %s", async (_n, response, message) => {
-    fetchMock().mockResolvedValueOnce(response);
+    fetchMock().mockResolvedValue(response);
     await openAddTab();
     fireEvent.changeText(messageBox(), "x");
     fireEvent.press(screen.getByText("חילוץ משימות"));

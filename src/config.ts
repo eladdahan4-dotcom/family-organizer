@@ -14,6 +14,7 @@ export const firebaseConfig = {
 export const isConfigured = !firebaseConfig.apiKey.startsWith("REPLACE");
 
 // Gemini models used to read messages and images (through Firebase AI Logic, free tier).
-// The first one is used; if Google retires it, the next is tried automatically.
-export const AI_MODELS = ["gemini-3.8-flash", "gemini-flash-latest"];
+// The free tier has a small daily limit per model (about 20 reads), so when the first model
+// is out of quota (429) or retired (404), the next one is tried automatically.
+export const AI_MODELS = ["gemini-3.8-flash", "gemini-flash-lite-latest"];
 export const AI_MODEL = AI_MODELS[0];

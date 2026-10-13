@@ -64,6 +64,7 @@ export async function extract(text: string, image?: { base64: string; mimeType: 
 
   let res: Response | null = null;
   let body = "";
+  let usedModel = "";
   for (const model of AI_MODELS) {
     try {
       res = await fetch(ENDPOINT(model), {
@@ -79,8 +80,9 @@ export async function extract(text: string, image?: { base64: string; mimeType: 
       throw new AiError("network", String(e?.message || e));
     }
     body = await res.text();
-    // A retired or unknown model answers 404: try the next one.
-    if (res.status !== 404) break;
+    usedModel = model;
+    // Out of daily quota (429) or retired (404): try the next model.
+    if (res.status !== 404 && res.status !== 429) break;
   }
   if (!res) throw new AiError("other", "no model configured");
   if (!res.ok) {
@@ -96,7 +98,7 @@ export async function extract(text: string, image?: { base64: string; mimeType: 
     throw new AiError("bad", "unreadable response");
   }
   raw = raw.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  return parseExtracted(raw);
+  return { ...parseExtracted(raw), model: usedModel };
 }
 
 export function parseExtracted(raw: string): Extracted {

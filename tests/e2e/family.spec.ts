@@ -26,6 +26,37 @@ const GAN_TEXT =
   "רותי הגננת: הורים יקרים, ביום חמישי הקרוב יתקיים יום פיג'מות. נא להעביר 25 ₪ לטיול עד יום שלישי.\n" +
   "ועד הורים: למסיבת סוכות כל ילד מביא בקבוק מיץ ושקית במבה";
 
+// Unless REAL_AI=1, answer AI requests with responses recorded from the real model,
+// so routine test runs don't use up the family's small free daily AI quota.
+const REAL_AI = process.env.REAL_AI === "1";
+const RECORDED_TEXT = {
+  tasks: [
+    { title: "פיג'מה ובובה אהובה לגן", date: "2026-10-15", time: "", cat: "gan" },
+    { title: "להעביר 25 ₪ לטיול לחוות החיות", date: "2026-10-20", time: "", cat: "gan" },
+  ],
+  shopping: [{ name: "בקבוק מיץ", qty: "1" }, { name: "שקית במבה", qty: "1" }],
+};
+const RECORDED_IMAGE = {
+  tasks: [
+    { title: "חולצה לבנה וכובע לסיור בגן הבוטני", date: "2026-10-14", time: "", cat: "school" },
+    { title: "להחזיר טופס אישור חתום", date: "2026-10-19", time: "", cat: "school" },
+    { title: "אסיפת הורים בכיתה", date: "2026-10-18", time: "18:30", cat: "school" },
+  ],
+  shopping: [],
+};
+async function useRecordedAi(p: Page) {
+  if (REAL_AI) return;
+  await p.route("**/firebasevertexai.googleapis.com/**", async (route) => {
+    const hasImage = (route.request().postData() || "").includes("inlineData");
+    const answer = hasImage ? RECORDED_IMAGE : RECORDED_TEXT;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer) }] } }] }),
+    });
+  });
+}
+
 const tab = (p: Page, re: RegExp) => p.getByText(re).first().click();
 const row = (p: Page, title: string | RegExp) =>
   p.getByText(title).first().locator('xpath=ancestor::div[.//*[@role="checkbox"]][1]');
@@ -33,6 +64,9 @@ const row = (p: Page, title: string | RegExp) =>
 test("two parents run the family board together", async ({ browser }) => {
   // ---------- Elad creates the board ----------
   const elad = await browser.newPage();
+  await useRecordedAi(elad);
+  const aiRequests: string[] = [];
+  elad.on("request", (r) => r.url().includes("firebasevertexai") && aiRequests.push(r.postData() || ""));
   await elad.goto("/");
   await expect(elad.getByText("ברוכים הבאים ללוח המשפחה", { exact: true })).toBeVisible();
   await shot(elad, "welcome");
@@ -87,6 +121,8 @@ test("two parents run the family board together", async ({ browser }) => {
   await elad.getByText("חילוץ משימות", { exact: true }).click();
   await expect(elad.getByText("הוספה ללוח", { exact: true })).toBeVisible({ timeout: 90_000 });
   await shot(elad, "image-preview");
+  // The photo really was sent to the AI as an image.
+  expect(aiRequests.some((b) => b.includes('"inlineData"') && b.includes("image/jpeg"))).toBe(true);
   await elad.getByText("הוספה ללוח", { exact: true }).click();
   await expect(elad.getByText(/אסיפ/).first()).toBeVisible();
   await shot(elad, "image-saved");
