@@ -6,7 +6,7 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 
 jest.mock("../../src/firebase", () => {
   const { makeFakeFirebase } = require("./fakeStore");
-  return makeFakeFirebase(jest.requireActual("../../src/firebase"));
+  return makeFakeFirebase(jest.requireActual("../../src/codes"));
 });
 
 jest.mock("expo-image-picker", () => ({

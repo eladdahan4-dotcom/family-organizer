@@ -2,7 +2,7 @@ import { iso, parseIso, dayDiff, fmtDate, parseUserDate, isIsoDate, isTime } fro
 import { buildPrompt, parseExtracted, sniffMime } from "../../src/ai";
 import { toIncoming } from "../../src/share.native";
 
-const { newFamilyCode, normalizeCode, prettyCode } = jest.requireActual("../../src/firebase");
+import { newFamilyCode, normalizeCode, prettyCode } from "../../src/codes";
 
 const addDays = (n: number) => {
   const d = new Date();

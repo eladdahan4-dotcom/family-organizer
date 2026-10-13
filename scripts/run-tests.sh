@@ -24,7 +24,7 @@ run unit npx jest -c jest.config.js --ci --forceExit
 run web-build-for-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 BASE_URL= npx expo export -p web --output-dir dist-e2e
 
 run database-and-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 npx firebase emulators:exec --only firestore --project demo-family \
-  "npx jest -c jest.integration.config.js --ci --forceExit && npx playwright test -c tests/e2e/playwright.config.ts"
+  "npx jest -c jest.integration.config.js --ci --forceExit; a=\$?; npx playwright test -c tests/e2e/playwright.config.ts; b=\$?; exit \$((a || b))"
 
 run ai-real npx jest -c jest.ai.config.js --ci --forceExit
 

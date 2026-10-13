@@ -43,21 +43,7 @@ export { isConfigured };
 
 const famPath = (fam: string) => "families/" + fam;
 
-/** Generates an unguessable family code; whoever has it can open the family's board. */
-export function newFamilyCode(): string {
-  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 20; i++) s += abc[Math.floor(Math.random() * abc.length)];
-  return s;
-}
-
-export function normalizeCode(s: string) {
-  return (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-export function prettyCode(s: string) {
-  return s.replace(/(.{5})(?=.)/g, "$1-");
-}
+export { newFamilyCode, normalizeCode, prettyCode } from "./codes";
 
 export async function createFamily(code: string, name: string) {
   await setDoc(doc(db(), famPath(code)), { createdAt: Date.now(), members: [name] });
