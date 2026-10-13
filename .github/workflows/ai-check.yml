@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
+      - shell: bash {0}
+        run: |
           KEY=$(grep -o 'apiKey: "[^"]*"' src/config.ts | cut -d'"' -f2)
           PROJ=$(grep -o 'projectId: "[^"]*"' src/config.ts | cut -d'"' -f2)
           IMG=$(base64 -w0 tests/fixtures/school-notice.jpg)
@@ -18,8 +19,8 @@ jobs:
           run() { # model label genconfig withimage
             if [ "$4" = "img" ]; then PARTS="[{\"text\":$(jq -Rn --arg p "$PROMPT" '$p')},{\"inlineData\":{\"mimeType\":\"image/jpeg\",\"data\":\"$IMG\"}}]"; else PARTS="[{\"text\":$(jq -Rn --arg p "$PROMPT הורים יקרים, ביום רביעי סיור, אסיפה ביום ראשון 18:30" '$p')}]"; fi
             echo "{\"contents\":[{\"role\":\"user\",\"parts\":$PARTS}],\"generationConfig\":$3}" > /tmp/body.json
-            OUT=$(curl -s -m 90 -o /tmp/resp.json -w "%{http_code} %{time_total}" -X POST "https://firebasevertexai.googleapis.com/v1beta/projects/$PROJ/models/$1:generateContent" -H "Content-Type: application/json" -H "x-goog-api-key: $KEY" --data @/tmp/body.json)
-            echo "$1 | $2 | $4 | $OUT | $(jq -c '.usageMetadata // .error.message' /tmp/resp.json | head -c 200)" >> /tmp/out.txt
+            OUT=$(curl -s -m 90 -o /tmp/resp.json -w "%{http_code} %{time_total}" -X POST "https://firebasevertexai.googleapis.com/v1beta/projects/$PROJ/models/$1:generateContent" -H "Content-Type: application/json" -H "x-goog-api-key: $KEY" --data @/tmp/body.json || echo "curl-fail")
+            echo "$1 | $2 | $4 | $OUT | $(jq -c '.usageMetadata // .error.message' /tmp/resp.json 2>/dev/null | head -c 200)" >> /tmp/out.txt
           }
           J='{"responseMimeType":"application/json"}'
           T0='{"responseMimeType":"application/json","thinkingConfig":{"thinkingBudget":0}}'
