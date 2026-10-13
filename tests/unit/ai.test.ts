@@ -104,6 +104,17 @@ describe("extract() talks to Gemini correctly", () => {
     expect(JSON.parse(calls[1][1].body).generationConfig.thinkingConfig).toBeUndefined();
   });
 
+  test("a model that doesn't answer in time is skipped for the next one", async () => {
+    (global.fetch as jest.Mock)
+      .mockImplementationOnce((_u: string, init: any) =>
+        new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))
+      )
+      .mockResolvedValueOnce(geminiReply({ tasks: [{ title: "ok", date: "", time: "", cat: "home" }], shopping: [] }));
+    const r = await extract("x", undefined, 30);
+    expect(r.tasks[0].title).toBe("ok");
+    expect(r.model).toBe(AI_MODELS[1]);
+  });
+
   test("no answer in time is reported as timeout, not as no internet", async () => {
     (global.fetch as jest.Mock).mockImplementation((_u: string, init: any) =>
       new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))

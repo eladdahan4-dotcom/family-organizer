@@ -11,8 +11,8 @@ const ENDPOINT = (model: string) =>
   model +
   ":generateContent";
 
-/** Longest wait for one AI answer before giving up with a clear message (tests may lower it). */
-export const AI_TIMEOUT_MS = 45_000;
+/** Longest wait for one model's answer before moving on to the next model (tests may lower it). */
+export const AI_TIMEOUT_MS = 30_000;
 export const aiSettings = { timeoutMs: AI_TIMEOUT_MS };
 
 const CATS: Cat[] = ["gan", "school", "home", "other"];
@@ -107,12 +107,20 @@ export async function extract(
   let res: Response | null = null;
   let body = "";
   let usedModel = "";
-  for (const model of AI_MODELS) {
-    res = await post(ENDPOINT(model), make(true), timeoutMs);
-    body = await res.text();
-    if (res.status === 400) {
-      res = await post(ENDPOINT(model), make(false), timeoutMs);
+  for (let m = 0; m < AI_MODELS.length; m++) {
+    const model = AI_MODELS[m];
+    const last = m === AI_MODELS.length - 1;
+    try {
+      res = await post(ENDPOINT(model), make(true), timeoutMs);
       body = await res.text();
+      if (res.status === 400) {
+        res = await post(ENDPOINT(model), make(false), timeoutMs);
+        body = await res.text();
+      }
+    } catch (e) {
+      // A model that doesn't answer at all (seen with the free tier): move on to the next one.
+      if (e instanceof AiError && e.kind === "timeout" && !last) continue;
+      throw e;
     }
     usedModel = model;
     // Out of daily quota (429) or retired (404): try the next model.
