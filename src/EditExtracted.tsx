@@ -36,9 +36,12 @@ export default function EditExtracted({
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
   const [msg, setMsg] = useState("");
+  // Keep the last target while the window slides closed (target becomes null right away).
+  const [shown, setShown] = useState<Target | null>(target);
 
   useEffect(() => {
     if (!target) return;
+    setShown(target);
     setMsg("");
     if (target.type === "task") {
       const t = target.item;
@@ -79,7 +82,7 @@ export default function EditExtracted({
       <View style={{ backgroundColor: th.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: "88%", direction: "rtl" }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}>
           <T bold size={19}>תיקון לפני הוספה</T>
-          {target?.type === "task" ? (
+          {(target || shown)?.type === "task" ? (
             <ItemForm draft={draft} onChange={setDraft} people={people} me={me} />
           ) : (
             <View style={s.row}>

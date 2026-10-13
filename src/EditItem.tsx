@@ -35,9 +35,12 @@ export default function EditItem({
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Keep showing the item while the window slides closed (item becomes null right away).
+  const [shown, setShown] = useState<Task | null>(item);
 
   useEffect(() => {
     if (!visible) return;
+    setShown(item);
     setDraft(item ? draftFrom(item) : emptyDraft(me, preset));
     setMsg("");
     setConfirmDelete(false);
@@ -48,8 +51,8 @@ export default function EditItem({
     if (!c.ok) return setMsg(c.msg);
     setBusy(true);
     try {
-      if (item) {
-        await updateTask(family, item.id, c.fields);
+      if (shown) {
+        await updateTask(family, shown.id, c.fields);
         toast("נשמר");
       } else {
         await addTask(family, { ...c.fields, done: false, createdBy: me, createdAt: Date.now(), source: "manual" });
@@ -64,11 +67,11 @@ export default function EditItem({
   };
 
   const remove = async () => {
-    if (!item) return;
+    if (!shown) return;
     if (!confirmDelete) return setConfirmDelete(true);
     setBusy(true);
     try {
-      await deleteTask(family, item.id);
+      await deleteTask(family, shown.id);
       toast("נמחק");
       onClose();
     } catch {
@@ -91,16 +94,16 @@ export default function EditItem({
         }}
       >
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}>
-          <T bold size={19}>{item ? "עריכה" : "פריט חדש"}</T>
+          <T bold size={19}>{shown ? "עריכה" : "פריט חדש"}</T>
           <ItemForm draft={draft} onChange={setDraft} people={people} me={me} />
           {msg ? (
             <View style={{ backgroundColor: th.soft, borderRadius: 10, padding: 10 }}>
               <T size={14}>{msg}</T>
             </View>
           ) : null}
-          <Btn label={item ? "שמירת השינויים" : "הוספה"} onPress={save} disabled={busy} />
+          <Btn label={shown ? "שמירת השינויים" : "הוספה"} onPress={save} disabled={busy} />
           <Btn label="ביטול" ghost onPress={onClose} disabled={busy} />
-          {item ? (
+          {shown ? (
             <Btn
               label={confirmDelete ? "בטוח? לחצו שוב למחיקה" : "מחיקה"}
               ghost={!confirmDelete}
