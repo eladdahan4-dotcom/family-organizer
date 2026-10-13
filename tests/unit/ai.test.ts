@@ -48,6 +48,7 @@ describe("extract() talks to Gemini correctly", () => {
   test.each([
     [429, "quota"],
     [403, "setup"],
+    [400, "other"],
     [500, "other"],
   ])("HTTP %s from every model is reported as %s", async (status, kind) => {
     (global.fetch as jest.Mock).mockResolvedValue(httpError(status as number));
@@ -83,6 +84,31 @@ describe("extract() talks to Gemini correctly", () => {
   test("if every model is unavailable it is reported as setup", async () => {
     (global.fetch as jest.Mock).mockResolvedValue(httpError(404));
     await expect(extract("x")).rejects.toMatchObject({ kind: "setup" });
+  });
+
+  test("asks the model to think less, for speed", async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(geminiReply({ tasks: [], shopping: [] }));
+    await extract("x");
+    const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
+  });
+
+  test("a model that rejects the speed setting is asked again without it", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(httpError(400, "Request contains an invalid argument."))
+      .mockResolvedValueOnce(geminiReply({ tasks: [{ title: "ok", date: "", time: "", cat: "home" }], shopping: [] }));
+    const r = await extract("x");
+    expect(r.tasks[0].title).toBe("ok");
+    const calls = (global.fetch as jest.Mock).mock.calls;
+    expect(calls[0][0]).toBe(calls[1][0]); // same model
+    expect(JSON.parse(calls[1][1].body).generationConfig.thinkingConfig).toBeUndefined();
+  });
+
+  test("no answer in time is reported as timeout, not as no internet", async () => {
+    (global.fetch as jest.Mock).mockImplementation((_u: string, init: any) =>
+      new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))
+    );
+    await expect(extract("x", undefined, 30)).rejects.toMatchObject({ kind: "timeout" });
   });
 
   test("no internet is reported as network", async () => {

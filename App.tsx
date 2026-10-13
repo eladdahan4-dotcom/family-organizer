@@ -11,11 +11,13 @@ import { ShareRoot, useIncomingShare, type Incoming } from "./src/share";
 import Setup from "./src/screens/Setup";
 import Tasks from "./src/screens/Tasks";
 import Shop from "./src/screens/Shop";
+import Calendar from "./src/screens/Calendar";
 import AddFromMessage from "./src/screens/AddFromMessage";
 import Settings from "./src/screens/Settings";
 import type { Task, ShopItem } from "./src/types";
+import { isPastEvent } from "./src/items";
 
-type Tab = "tasks" | "shop" | "add" | "settings";
+type Tab = "tasks" | "calendar" | "shop" | "add" | "settings";
 
 function linkCode(): string {
   if (Platform.OS !== "web") return "";
@@ -75,10 +77,11 @@ function Main() {
     toastTimer.current = setTimeout(() => setToastMsg(""), 2200);
   };
 
-  const openCount = tasks.filter((t) => !t.done).length;
+  const openCount = tasks.filter((t) => !t.done && !isPastEvent(t)).length;
   const shopCount = shop.filter((x) => !x.done).length;
   const tabs: [Tab, string][] = [
     ["tasks", "משימות" + (openCount ? " " + openCount : "")],
+    ["calendar", "יומן"],
     ["shop", "קניות" + (shopCount ? " " + shopCount : "")],
     ["add", "+ הודעה"],
     ["settings", "הגדרות"],
@@ -101,9 +104,9 @@ function Main() {
                 onPress={() => setTab(k)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: tab === k }}
-                style={{ flex: 1, paddingVertical: 9, borderRadius: 999, backgroundColor: tab === k ? th.accent : "transparent", alignItems: "center" }}
+                style={{ flex: 1, paddingVertical: 9, paddingHorizontal: 2, borderRadius: 999, backgroundColor: tab === k ? th.accent : "transparent", alignItems: "center" }}
               >
-                <Text style={{ color: tab === k ? th.accentInk : th.muted, fontWeight: "700", fontSize: 14 }} numberOfLines={1}>
+                <Text style={{ color: tab === k ? th.accentInk : th.muted, fontWeight: "700", fontSize: 13 }} numberOfLines={1} adjustsFontSizeToFit>
                   {label}
                 </Text>
               </Pressable>
@@ -133,12 +136,15 @@ function Main() {
           />
         ) : tab === "tasks" ? (
           <Tasks family={local.family} me={local.name} members={members} tasks={tasks} toast={toast} />
+        ) : tab === "calendar" ? (
+          <Calendar family={local.family} me={local.name} members={members} tasks={tasks} toast={toast} />
         ) : tab === "shop" ? (
           <Shop family={local.family} me={local.name} items={shop} toast={toast} />
         ) : tab === "add" ? (
           <AddFromMessage
             family={local.family}
             me={local.name}
+            members={members}
             incoming={incoming}
             onIncomingUsed={() => {
               setIncoming(null);

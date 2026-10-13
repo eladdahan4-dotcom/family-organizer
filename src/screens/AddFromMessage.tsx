@@ -5,16 +5,19 @@ import { T, Btn, Input, Card, Check, Tag, s } from "../ui";
 import { useTheme } from "../theme";
 import { extract, AiError } from "../ai";
 import { addMany } from "../firebase";
-import { readImageBase64 } from "../image";
+import { prepareImage } from "../image";
 import { fmtDate } from "../dates";
+import { timeLabel } from "../items";
 import { CAT_LABEL, type Extracted } from "../types";
 import type { Incoming } from "../share";
+import EditExtracted, { type Target } from "../EditExtracted";
 
-type Img = { uri: string; mimeType: string; base64?: string };
+type Img = { uri: string; mimeType: string; width?: number; height?: number };
 
 export default function AddFromMessage({
   family,
   me,
+  members,
   incoming,
   onIncomingUsed,
   onAdded,
@@ -22,6 +25,7 @@ export default function AddFromMessage({
 }: {
   family: string;
   me: string;
+  members: string[];
   incoming: Incoming | null;
   onIncomingUsed: () => void;
   onAdded: () => void;
@@ -33,6 +37,9 @@ export default function AddFromMessage({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [found, setFound] = useState<Extracted | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [editing, setEditing] = useState<Target | null>(null);
+  const people = Array.from(new Set([me, ...members].filter(Boolean)));
   const autoRun = useRef(false);
 
   // Content shared from WhatsApp / Gallery: fill in and read it right away.
@@ -58,11 +65,12 @@ export default function AddFromMessage({
         const p = await ImagePicker.requestCameraPermissionsAsync();
         if (!p.granted) return setMsg("צריך לאשר גישה למצלמה בהגדרות הטלפון.");
       }
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, base64: true };
+      // The image is shrunk just before sending (prepareImage), so take the original here.
+      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 1 };
       const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (r.canceled || !r.assets?.length) return;
       const a = r.assets[0];
-      setImg({ uri: a.uri, mimeType: a.base64 ? "image/jpeg" : a.mimeType || "image/jpeg", base64: a.base64 || undefined });
+      setImg({ uri: a.uri, mimeType: a.mimeType || "image/jpeg", width: a.width, height: a.height });
       setFound(null);
       setMsg("התמונה מוכנה. לחצו ״חילוץ משימות״.");
     } catch {
@@ -74,12 +82,14 @@ export default function AddFromMessage({
     if (!text.trim() && !img) return setMsg("הדביקו טקסט או הוסיפו תמונה.");
     setBusy(true);
     setMsg("קורא את ההודעה…");
+    const started = Date.now();
+    setElapsed(0);
+    const tick = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
     try {
       let image: { base64: string; mimeType: string } | undefined;
       if (img) {
         try {
-          const b64 = img.base64 || (await readImageBase64(img.uri));
-          image = { base64: b64, mimeType: Platform.OS === "web" ? "image/jpeg" : img.mimeType };
+          image = await prepareImage(img.uri, img.width, img.height);
         } catch (e: any) {
           setMsg("לא הצלחתי לקרוא את קובץ התמונה. נסו לבחור אותה שוב מהגלריה. (קריאה: " + String(e?.message || e).slice(0, 60) + ")");
           return;
@@ -93,14 +103,17 @@ export default function AddFromMessage({
       const kind = e instanceof AiError ? e.kind : "other";
       setMsg(
         kind === "quota"
-          ? "הגעתם למגבלת השימוש היומית החינמית בחילוץ החכם. היא מתאפסת כל יום בסביבות 10:00 בבוקר. בינתיים אפשר להוסיף משימות ידנית."
+          ? "הגעתם למגבלת השימוש היומית החינמית בחילוץ החכם. היא מתאפסת כל לילה. בינתיים אפשר להוסיף משימות ידנית."
           : kind === "network"
           ? "אין חיבור לאינטרנט. נסו שוב."
+          : kind === "timeout"
+          ? "הקריאה לקחה יותר מדי זמן. נסו שוב, או צלמו רק את החלק החשוב בהודעה."
           : kind === "setup"
           ? "החילוץ החכם לא מופעל בפרויקט Firebase. (" + m + ")"
           : "החילוץ לא הצליח. נסו שוב. (" + m + ")"
       );
     } finally {
+      clearInterval(tick);
       setBusy(false);
     }
   };
@@ -113,7 +126,20 @@ export default function AddFromMessage({
     try {
       await addMany(
         family,
-        ts.map((t, i) => ({ title: t.title, date: t.date, time: t.time, cat: t.cat, who: "", done: false, createdBy: me, createdAt: n + i, source: "message" })),
+        ts.map((t, i) => ({
+          kind: t.kind,
+          title: t.title,
+          date: t.date,
+          time: t.time,
+          endTime: t.endTime,
+          location: t.location,
+          cat: t.cat,
+          who: t.who || "",
+          done: false,
+          createdBy: me,
+          createdAt: n + i,
+          source: "message",
+        })),
         ss.map((x, i) => ({ name: x.name, qty: x.qty, done: false, createdBy: me, createdAt: n + i }))
       );
       toast("נוספו " + (ts.length + ss.length) + " פריטים");
@@ -159,39 +185,57 @@ export default function AddFromMessage({
             <Btn label="הסרת התמונה" ghost onPress={() => setImg(null)} />
           </View>
         ) : null}
-        <Btn label={busy ? "קורא…" : "חילוץ משימות"} onPress={run} disabled={busy} />
+        <Btn label={busy ? (elapsed >= 2 ? "קורא… " + elapsed + " שנ׳" : "קורא…") : "חילוץ משימות"} onPress={run} disabled={busy} />
         {msg ? <T muted size={14}>{msg}</T> : null}
       </Card>
 
       {found && (found.tasks.length || found.shopping.length) ? (
         <View style={{ gap: 8 }}>
           <T bold size={17}>
-            זה מה שמצאתי <T muted size={14}>בטלו סימון למה שלא צריך</T>
+            זה מה שמצאתי <T muted size={14}>לחיצה על פריט לתיקון · ביטול סימון למה שלא צריך</T>
           </T>
           <View style={{ backgroundColor: th.surface, borderColor: th.line, borderWidth: 1, borderRadius: 12, overflow: "hidden" }}>
             {found.tasks.map((t, i) => (
-              <Pressable key={"t" + i} onPress={() => flip("t", i)} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: i ? 1 : 0, borderTopColor: th.line }}>
+              <View key={"t" + i} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: i ? 1 : 0, borderTopColor: th.line }}>
                 <Check on={!!t.pick} onPress={() => flip("t", i)} />
-                <View style={{ flex: 1, gap: 3 }}>
-                  <T bold>{t.title}</T>
+                <Pressable
+                  onPress={() => setEditing({ type: "task", index: i, item: t })}
+                  accessibilityRole="button"
+                  accessibilityHint="תיקון"
+                  style={{ flex: 1, gap: 3, opacity: t.pick ? 1 : 0.5 }}
+                >
+                  <T bold>{(t.kind === "event" ? "📅 " : "") + t.title}</T>
                   <View style={s.row}>
                     <Tag label={CAT_LABEL[t.cat]} color={th.cat[t.cat]} />
-                    <T muted size={13}>{t.date ? fmtDate(t.date) + (t.time ? " · " + t.time : "") : "בלי תאריך"}</T>
+                    <T muted size={13}>{t.date ? fmtDate(t.date) + (t.time ? " · " + timeLabel(t) : "") : "בלי תאריך"}</T>
+                    {t.location ? <T muted size={13}>{"📍 " + t.location}</T> : null}
+                    {t.who ? <T muted size={13}>{"👤 " + (t.who === "both" ? "שנינו" : t.who)}</T> : null}
                   </View>
-                </View>
-              </Pressable>
+                </Pressable>
+                <T muted size={18} style={{ paddingHorizontal: 4 }} onPress={() => setEditing({ type: "task", index: i, item: t })} accessibilityLabel="תיקון">
+                  ✎
+                </T>
+              </View>
             ))}
             {found.shopping.map((x, i) => (
-              <Pressable key={"s" + i} onPress={() => flip("s", i)} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: th.line }}>
+              <View key={"s" + i} style={{ flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: th.line }}>
                 <Check on={!!x.pick} onPress={() => flip("s", i)} />
-                <View style={{ flex: 1, gap: 3 }}>
+                <Pressable
+                  onPress={() => setEditing({ type: "shop", index: i, item: x })}
+                  accessibilityRole="button"
+                  accessibilityHint="תיקון"
+                  style={{ flex: 1, gap: 3, opacity: x.pick ? 1 : 0.5 }}
+                >
                   <T bold>{"🛒 " + x.name}</T>
                   <View style={s.row}>
                     <Tag label="קניות" color={th.cat.shop} />
                     {x.qty ? <T muted size={13}>{x.qty}</T> : null}
                   </View>
-                </View>
-              </Pressable>
+                </Pressable>
+                <T muted size={18} style={{ paddingHorizontal: 4 }} onPress={() => setEditing({ type: "shop", index: i, item: x })} accessibilityLabel="תיקון">
+                  ✎
+                </T>
+              </View>
             ))}
           </View>
           <View style={s.row}>
@@ -200,6 +244,23 @@ export default function AddFromMessage({
           </View>
         </View>
       ) : null}
+
+      <EditExtracted
+        target={editing}
+        people={people}
+        me={me}
+        onClose={() => setEditing(null)}
+        onSaveTask={(i, t) => found && setFound({ ...found, tasks: found.tasks.map((x, j) => (j === i ? t : x)) })}
+        onSaveShop={(i, x) => found && setFound({ ...found, shopping: found.shopping.map((y, j) => (j === i ? { ...x, pick: true } : y)) })}
+        onRemove={(tg) =>
+          found &&
+          setFound(
+            tg.type === "task"
+              ? { ...found, tasks: found.tasks.filter((_, j) => j !== tg.index) }
+              : { ...found, shopping: found.shopping.filter((_, j) => j !== tg.index) }
+          )
+        }
+      />
     </View>
   );
 }

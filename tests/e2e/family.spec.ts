@@ -18,7 +18,8 @@ async function stored(code: string, col: "tasks" | "shop") {
   const j: any = await r.json();
   return (j.documents || []).map((d: any) => {
     const f = d.fields || {};
-    return { title: f.title?.stringValue, name: f.name?.stringValue, cat: f.cat?.stringValue, date: f.date?.stringValue, done: f.done?.booleanValue, source: f.source?.stringValue };
+    const v = (k: string) => f[k]?.stringValue;
+    return { kind: v("kind"), title: v("title"), name: v("name"), cat: v("cat"), date: v("date"), time: v("time"), endTime: v("endTime"), location: v("location"), done: f.done?.booleanValue, source: v("source") };
   });
 }
 
@@ -29,18 +30,23 @@ const GAN_TEXT =
 // Unless REAL_AI=1, answer AI requests with responses recorded from the real model,
 // so routine test runs don't use up the family's small free daily AI quota.
 const REAL_AI = process.env.REAL_AI === "1";
+const rel = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+};
 const RECORDED_TEXT = {
   tasks: [
-    { title: "פיג'מה ובובה אהובה לגן", date: "2026-10-15", time: "", cat: "gan" },
-    { title: "להעביר 25 ₪ לטיול לחוות החיות", date: "2026-10-20", time: "", cat: "gan" },
+    { kind: "task", title: "פיג'מה ובובה אהובה לגן", date: rel(2), time: "", cat: "gan" },
+    { kind: "task", title: "להעביר 25 ₪ לטיול לחוות החיות", date: rel(7), time: "", cat: "gan" },
   ],
   shopping: [{ name: "בקבוק מיץ", qty: "1" }, { name: "שקית במבה", qty: "1" }],
 };
 const RECORDED_IMAGE = {
   tasks: [
-    { title: "חולצה לבנה וכובע לסיור בגן הבוטני", date: "2026-10-14", time: "", cat: "school" },
-    { title: "להחזיר טופס אישור חתום", date: "2026-10-19", time: "", cat: "school" },
-    { title: "אסיפת הורים בכיתה", date: "2026-10-18", time: "18:30", cat: "school" },
+    { kind: "task", title: "חולצה לבנה וכובע לסיור בגן הבוטני", date: rel(1), time: "", cat: "school" },
+    { kind: "task", title: "להחזיר טופס אישור חתום", date: rel(6), time: "", cat: "school" },
+    { kind: "event", title: "אסיפת הורים בכיתה", date: rel(5), time: "18:30", endTime: "19:30", location: "בכיתה", cat: "school" },
   ],
   shopping: [],
 };
@@ -90,6 +96,24 @@ test("two parents run the family board together", async ({ browser }) => {
   await shot(elad, "manual-task");
   expect(await stored(CODE, "tasks")).toEqual([expect.objectContaining({ title: "לקנות מתנה ליום הולדת", cat: "home", done: false })]);
 
+  // ---------- Manual meeting ----------
+  await elad.getByText("📅 פגישה", { exact: true }).click();
+  await elad.getByPlaceholder("פגישה חדשה, למשל: אסיפת הורים").fill("רופא ילדים");
+  await elad.getByText("מחר", { exact: true }).click();
+  await elad.getByPlaceholder("משעה 18:00").fill("17:00");
+  await elad.getByPlaceholder("עד 19:30").fill("17:30");
+  await elad.getByPlaceholder("מקום, למשל: בכיתה").fill("מרפאה");
+  await elad.getByText("הוספה", { exact: true }).click();
+  await expect(elad.getByText("17:00–17:30")).toBeVisible();
+  await shot(elad, "manual-meeting");
+  expect((await stored(CODE, "tasks")).find((t: any) => t.title === "רופא ילדים")).toMatchObject({
+    kind: "event",
+    date: rel(1),
+    time: "17:00",
+    endTime: "17:30",
+    location: "מרפאה",
+  });
+
   // ---------- Shopping ----------
   await tab(elad, /^קניות/);
   await elad.getByPlaceholder("מה צריך לקנות? למשל: חלב 3%").fill("חלב 3%");
@@ -105,12 +129,20 @@ test("two parents run the family board together", async ({ browser }) => {
   await elad.getByText("חילוץ משימות", { exact: true }).click();
   await expect(elad.getByText("הוספה ללוח", { exact: true })).toBeVisible({ timeout: 90_000 });
   await shot(elad, "text-preview");
+  // Fix what the AI understood before saving.
+  await elad.getByText(/25 ₪/).first().click();
+  await expect(elad.getByText("תיקון לפני הוספה", { exact: true })).toBeVisible();
+  await elad.getByPlaceholder("משימה חדשה, למשל: להביא 20 ₪ לטיול").fill("להעביר 30 ₪ לטיול");
+  await elad.getByText("עדכון", { exact: true }).click();
+  await expect(elad.getByText("להעביר 30 ₪ לטיול", { exact: true })).toBeVisible();
+  await shot(elad, "text-preview-fixed");
   await elad.getByText("הוספה ללוח", { exact: true }).click();
   await expect(elad.getByText(/פיג/).first()).toBeVisible();
   await shot(elad, "text-saved");
   const afterText = await stored(CODE, "tasks");
   expect(afterText.some((t: any) => /פיג/.test(t.title) && t.cat === "gan" && t.source === "message")).toBe(true);
-  expect(afterText.some((t: any) => /25/.test(t.title))).toBe(true);
+  expect(afterText.some((t: any) => t.title === "להעביר 30 ₪ לטיול")).toBe(true);
+  expect(afterText.some((t: any) => /25 ₪/.test(t.title))).toBe(false);
 
   // ---------- Photo of a school letter → real AI ----------
   await tab(elad, /^\+ הודעה/);
@@ -128,7 +160,22 @@ test("two parents run the family board together", async ({ browser }) => {
   await shot(elad, "image-saved");
   const afterImage = await stored(CODE, "tasks");
   expect(afterImage.some((t: any) => /אסיפ/.test(t.title) && t.cat === "school")).toBe(true);
-  expect(afterImage.some((t: any) => /סיור|בוטני/.test(t.title))).toBe(true);
+  expect(afterImage.some((t: any) => /סיור|בוטני|חולצה/.test(t.title))).toBe(true);
+  expect(afterImage.find((t: any) => /אסיפ/.test(t.title))).toMatchObject({ kind: "event", time: "18:30" });
+
+  // ---------- Calendar: the meeting is on its day; edit it there ----------
+  await tab(elad, /^יומן/);
+  if (rel(1).slice(5, 7) !== rel(0).slice(5, 7)) await elad.getByLabel("החודש הבא").click();
+  await elad.getByTestId("day-" + rel(1)).click();
+  await expect(elad.getByText("רופא ילדים", { exact: true })).toBeVisible();
+  await shot(elad, "calendar");
+  await elad.getByText("רופא ילדים", { exact: true }).click();
+  await expect(elad.getByText("עריכה", { exact: true })).toBeVisible();
+  await elad.getByPlaceholder("משעה 18:00").fill("16:30");
+  await elad.getByText("שמירת השינויים", { exact: true }).click();
+  await expect(elad.getByText("16:30–17:30")).toBeVisible();
+  await shot(elad, "calendar-edited");
+  expect((await stored(CODE, "tasks")).find((t: any) => t.title === "רופא ילדים")).toMatchObject({ time: "16:30", endTime: "17:30" });
 
   // ---------- Shira joins from the invite link ----------
   const shira = await browser.newPage();

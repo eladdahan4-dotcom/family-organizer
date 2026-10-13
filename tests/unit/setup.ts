@@ -18,6 +18,16 @@ jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
 }));
 
+jest.mock("expo-image-manipulator", () => ({
+  manipulateAsync: jest.fn(async (uri: string, _actions: any[], opts: any) => ({
+    uri,
+    width: 1000,
+    height: 2000,
+    base64: opts && opts.base64 ? "/9j/SMALL" : undefined,
+  })),
+  SaveFormat: { JPEG: "jpeg", PNG: "png" },
+}));
+
 jest.mock("expo-file-system", () => ({
   readAsStringAsync: jest.fn(async () => "/9j/FROMFILE"),
   EncodingType: { Base64: "base64" },

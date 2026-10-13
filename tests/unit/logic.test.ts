@@ -85,14 +85,42 @@ describe("AI prompt and response parsing", () => {
       })
     );
     expect(r.tasks).toEqual([
-      { title: "פיג׳מה לגן", date: "2026-10-15", time: "", cat: "gan", pick: true },
-      { title: "אסיפה", date: "", time: "18:30", cat: "school", pick: true },
-      { title: "משהו", date: "", time: "", cat: "other", pick: true },
+      { kind: "task", title: "פיג׳מה לגן", date: "2026-10-15", time: "", endTime: "", location: "", cat: "gan", pick: true },
+      { kind: "task", title: "אסיפה", date: "", time: "18:30", endTime: "", location: "", cat: "school", pick: true },
+      { kind: "task", title: "משהו", date: "", time: "", endTime: "", location: "", cat: "other", pick: true },
     ]);
     expect(r.shopping).toEqual([
       { name: "במבה", qty: "2", pick: true },
       { name: "מיץ", qty: "", pick: true },
     ]);
+  });
+
+  test("parseExtracted keeps meeting details and drops impossible ones", () => {
+    const r = parseExtracted(
+      JSON.stringify({
+        tasks: [
+          { kind: "event", title: "אסיפת הורים", date: "2026-10-18", time: "18:30", endTime: "19:30", location: "בכיתה", cat: "school" },
+          { kind: "event", title: "בלי שעה", date: "2026-10-18", time: "", endTime: "19:00", location: "x", cat: "school" },
+          { kind: "event", title: "סיום לפני התחלה", date: "2026-10-18", time: "18:00", endTime: "17:00", cat: "school" },
+          { kind: "task", title: "משימה עם מקום", location: "בבית", endTime: "10:00", time: "09:00" },
+          { kind: "meeting", title: "סוג לא מוכר" },
+        ],
+      })
+    );
+    expect(r.tasks.map((t) => [t.kind, t.time, t.endTime, t.location])).toEqual([
+      ["event", "18:30", "19:30", "בכיתה"],
+      ["event", "", "", "x"],
+      ["event", "18:00", "", ""],
+      ["task", "09:00", "", ""],
+      ["task", "", "", ""],
+    ]);
+  });
+
+  test("prompt explains meetings vs tasks", () => {
+    const p = buildPrompt("x", false);
+    expect(p).toContain('"event"');
+    expect(p).toContain("endTime");
+    expect(p).toContain("location");
   });
 
   test("parseExtracted handles missing lists and rejects non-JSON", () => {

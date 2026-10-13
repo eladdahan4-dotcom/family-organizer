@@ -63,6 +63,14 @@ describe("reminders on the phone", () => {
     expect([r.at.getHours(), r.at.getMinutes()]).toEqual([7, 30]);
   });
 
+  test("meetings: marked with a calendar icon and the place in the text", async () => {
+    await run([task({ kind: "event", title: "אסיפה", date: day(2), time: "18:30", location: "בכיתה" })]);
+    const c = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls[0][0];
+    expect(c.content.title).toBe("📅 בעוד שעה: אסיפה");
+    expect(c.content.body).toBe("בשעה 18:30 · 📍 בכיתה");
+    expect([c.trigger.date.getHours(), c.trigger.date.getMinutes()]).toEqual([17, 30]);
+  });
+
   test("no reminders for done, past or undated tasks", async () => {
     await run([task({ date: day(1), done: true }), task({ date: day(-1) }), task({ date: "" })]);
     expect(scheduled()).toHaveLength(0);

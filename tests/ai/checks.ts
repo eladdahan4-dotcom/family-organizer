@@ -31,6 +31,8 @@ export function checkSchool(r: Extracted, from = new Date()): string[] {
   if (!has(r, /סיור|בוטני|חולצה|כובע/, (t) => upcoming(3, from).includes(t.date) && t.cat === "school")) p.push("trip on Wednesday (school)");
   if (!has(r, /טופס|אישור/, (t) => upcoming(1, from).includes(t.date))) p.push("signed form back by Monday");
   if (!has(r, /אסיפ/, (t) => upcoming(0, from).includes(t.date) && t.time === "18:30")) p.push("parents' meeting Sunday 18:30");
+  if (!has(r, /אסיפ/, (t) => t.kind === "event")) p.push("parents' meeting should be a meeting, not a task");
+  if (!has(r, /טופס|אישור/, (t) => t.kind === "task")) p.push("returning the form should be a task");
   return p;
 }
 
@@ -45,4 +47,13 @@ export function checkNothing(r: Extracted): string[] {
 export function checkShopping(r: Extracted): string[] {
   const names = r.shopping.map((s) => s.name).join(" ");
   return ["חלב", "לחם", "ביצים"].filter((w) => !names.includes(w)).map((w) => "shopping: " + w);
+}
+
+export function checkMeetingRange(r: Extracted, from = new Date()): string[] {
+  const p: string[] = [];
+  if (!has(r, /כדורגל|חוג/, (t) => t.kind === "event" && upcoming(1, from).includes(t.date) && t.time === "16:00" && t.endTime === "17:00"))
+    p.push("football class Monday 16:00–17:00 as a meeting");
+  if (!has(r, /כדורגל|חוג/, (t) => /מגרש/.test(t.location))) p.push("place: the town field");
+  if (!/מים/.test([...r.tasks.map((t) => t.title), ...r.shopping.map((s) => s.name)].join(" "))) p.push("bring a water bottle");
+  return p;
 }

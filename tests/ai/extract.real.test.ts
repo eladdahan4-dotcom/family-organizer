@@ -6,7 +6,7 @@
 import fs from "fs";
 import path from "path";
 import { extract as realExtract, AiError } from "../../src/ai";
-import { checkGan, checkSchool, checkEnglish, checkNothing, checkShopping } from "./checks";
+import { checkGan, checkSchool, checkEnglish, checkNothing, checkShopping, checkMeetingRange } from "./checks";
 
 jest.retryTimes(2, { logErrorsBeforeRetry: true });
 
@@ -74,6 +74,12 @@ describe("real Gemini: other kinds of messages", () => {
     const r = await extract("שבת שלום לכולם! 🌸 תודה על שבוע מקסים");
     results.nothing = r;
     expect(checkNothing(r)).toEqual([]);
+  });
+
+  test("meeting with a time range and a place", async () => {
+    const r = await extract("תזכורת: חוג כדורגל ביום שני 16:00-17:00 במגרש העירוני. לא לשכוח בקבוק מים.");
+    results.meetingRange = r;
+    expect(checkMeetingRange(r)).toEqual([]);
   });
 
   test("shopping list message goes to shopping", async () => {

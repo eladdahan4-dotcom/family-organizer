@@ -11,6 +11,9 @@ const ENDPOINT = (model: string) =>
   model +
   ":generateContent";
 
+/** Longest wait for one AI answer before giving up with a clear message. */
+export const AI_TIMEOUT_MS = 45_000;
+
 const CATS: Cat[] = ["gan", "school", "home", "other"];
 
 export function buildPrompt(text: string, hasImage: boolean, now = new Date()) {
@@ -22,16 +25,20 @@ export function buildPrompt(text: string, hasImage: boolean, now = new Date()) {
     })
     .join("; ");
   return (
-    "You extract family to-dos from Hebrew (or English) messages sent by kindergartens, schools, parent committees, email and WhatsApp.\n" +
+    "You extract family to-dos and meetings from Hebrew (or English) messages sent by kindergartens, schools, parent committees, email and WhatsApp.\n" +
     "Today is " + iso(now) + " (יום " + DAYS[now.getDay()] + "). Upcoming days: " + week + ".\n" +
     "Resolve relative dates (מחר, ביום חמישי, שבוע הבא) to YYYY-MM-DD. If a task has a deadline (עד יום X), use the deadline date. Leave date empty if none.\n" +
-    "Write each task title as a short, actionable Hebrew phrase for the parents (e.g. 'לשלוח 15 ₪ לטיול', 'פיג׳מה לגן'). Include amounts and items to bring.\n" +
+    "Each item has a kind:\n" +
+    "- \"event\": something that happens at a set date (usually a time) that someone attends: parents' meeting (אסיפת הורים), appointment, party, birthday, performance, class, trip day.\n" +
+    "- \"task\": something to do, bring, pay, sign, send or prepare.\n" +
+    "For events put the start time in time, the end time in endTime and the place in location when the message gives them.\n" +
+    "Write each title as a short Hebrew phrase for the parents (e.g. 'לשלוח 15 ₪ לטיול', 'פיג׳מה לגן', 'אסיפת הורים'). Include amounts and items to bring.\n" +
     "Only include things the parents need to do, remember or attend. Skip general information that needs no action.\n" +
     "cat must be one of: gan (kindergarten/מעון/צהרון), school, home, other. Items to buy at the supermarket go in shopping instead of tasks.\n" +
     (hasImage
       ? "An image is attached (a screenshot of a WhatsApp chat or email, a printed school notice, an invitation, a schedule). Read all text in it and extract from it too. Ignore chat UI elements.\n"
       : "") +
-    'Return ONLY JSON: {"tasks":[{"title":"","date":"","time":"HH:MM or empty","cat":""}],"shopping":[{"name":"","qty":""}]}\n\nMESSAGE:\n' +
+    'Return ONLY JSON: {"tasks":[{"kind":"task or event","title":"","date":"","time":"HH:MM or empty","endTime":"HH:MM or empty","location":"","cat":""}],"shopping":[{"name":"","qty":""}]}\n\nMESSAGE:\n' +
     (text || "(no text, see the attached image)")
   );
 }
@@ -48,38 +55,64 @@ export function sniffMime(b64: string, fallback = "image/jpeg"): string {
 }
 
 export class AiError extends Error {
-  constructor(public kind: "quota" | "network" | "setup" | "bad" | "other", msg: string) {
+  constructor(public kind: "quota" | "network" | "timeout" | "setup" | "bad" | "other", msg: string) {
     super(msg);
   }
 }
 
-export async function extract(text: string, image?: { base64: string; mimeType: string }): Promise<Extracted> {
+async function post(url: string, payload: string, timeoutMs: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": firebaseConfig.apiKey,
+        "X-Firebase-AppId": firebaseConfig.appId,
+      },
+      body: payload,
+      signal: ctrl.signal,
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError" || ctrl.signal.aborted) throw new AiError("timeout", "no answer in " + timeoutMs / 1000 + "s");
+    throw new AiError("network", String(e?.message || e));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function extract(
+  text: string,
+  image?: { base64: string; mimeType: string },
+  timeoutMs = AI_TIMEOUT_MS
+): Promise<Extracted> {
   const parts: any[] = [{ text: buildPrompt(text, !!image) }];
   if (image) parts.push({ inlineData: { mimeType: sniffMime(image.base64, image.mimeType || "image/jpeg"), data: image.base64 } });
 
-  const payload = JSON.stringify({
-    contents: [{ role: "user", parts }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
-  });
+  // Less "thinking" makes answers about twice as fast (measured ~25s → ~11s); reading a
+  // school message doesn't need deep reasoning. Models that don't accept the setting are
+  // asked again without it.
+  const make = (fast: boolean) =>
+    JSON.stringify({
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+        ...(fast ? { thinkingConfig: { thinkingLevel: "low" } } : {}),
+      },
+    });
 
   let res: Response | null = null;
   let body = "";
   let usedModel = "";
   for (const model of AI_MODELS) {
-    try {
-      res = await fetch(ENDPOINT(model), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": firebaseConfig.apiKey,
-          "X-Firebase-AppId": firebaseConfig.appId,
-        },
-        body: payload,
-      });
-    } catch (e: any) {
-      throw new AiError("network", String(e?.message || e));
-    }
+    res = await post(ENDPOINT(model), make(true), timeoutMs);
     body = await res.text();
+    if (res.status === 400) {
+      res = await post(ENDPOINT(model), make(false), timeoutMs);
+      body = await res.text();
+    }
     usedModel = model;
     // Out of daily quota (429) or retired (404): try the next model.
     if (res.status !== 404 && res.status !== 429) break;
@@ -111,13 +144,20 @@ export function parseExtracted(raw: string): Extracted {
   return {
     tasks: (j.tasks || [])
       .filter((t: any) => t && t.title)
-      .map((t: any) => ({
-        title: String(t.title),
-        date: isIsoDate(t.date) ? t.date : "",
-        time: isTime(t.time) ? t.time : "",
-        cat: CATS.includes(t.cat) ? t.cat : "other",
-        pick: true,
-      })),
+      .map((t: any) => {
+        const time = isTime(t.time) ? t.time : "";
+        const kind = t.kind === "event" ? "event" : "task";
+        return {
+          kind,
+          title: String(t.title),
+          date: isIsoDate(t.date) ? t.date : "",
+          time,
+          endTime: kind === "event" && time && isTime(t.endTime) && t.endTime > time ? t.endTime : "",
+          location: kind === "event" && t.location ? String(t.location) : "",
+          cat: CATS.includes(t.cat) ? t.cat : "other",
+          pick: true,
+        };
+      }),
     shopping: (j.shopping || [])
       .filter((s: any) => s && s.name)
       .map((s: any) => ({ name: String(s.name), qty: s.qty ? String(s.qty) : "", pick: true })),

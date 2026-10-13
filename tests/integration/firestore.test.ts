@@ -97,6 +97,21 @@ describe("family board in the real database", () => {
     expect(await adminList(`families/${FAM}/shop`)).toHaveLength(0);
   });
 
+  test("a meeting keeps its type, time range and place; editing changes only what was edited", async () => {
+    await addTask(FAM, task("אסיפת הורים", { kind: "event", time: "18:30", endTime: "19:30", location: "בכיתה", cat: "school" }));
+    const [row] = await adminList(`families/${FAM}/tasks`);
+    expect(row).toMatchObject({ kind: "event", time: "18:30", endTime: "19:30", location: "בכיתה" });
+    await updateTask(FAM, row._id, { title: "אסיפת הורים כיתה ב", time: "19:00", endTime: "20:00" });
+    expect((await adminList(`families/${FAM}/tasks`))[0]).toMatchObject({
+      kind: "event",
+      title: "אסיפת הורים כיתה ב",
+      time: "19:00",
+      endTime: "20:00",
+      location: "בכיתה",
+      createdBy: "אלעד",
+    });
+  });
+
   test("mark done and delete a task", async () => {
     await addTask(FAM, task("לחתום"));
     const [{ _id }] = await adminList(`families/${FAM}/tasks`);

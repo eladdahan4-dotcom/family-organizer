@@ -62,8 +62,8 @@ export function syncReminders(tasks: Task[]) {
     for (const { t, at } of upcoming) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: t.time ? "בעוד שעה: " + t.title : "היום: " + t.title,
-          body: t.time ? "בשעה " + t.time : "תזכורת מלוח המשפחה",
+          title: (t.kind === "event" ? "📅 " : "") + (t.time ? "בעוד שעה: " : "היום: ") + t.title,
+          body: [t.time ? "בשעה " + t.time : "תזכורת מלוח המשפחה", t.location ? "📍 " + t.location : ""].filter(Boolean).join(" · "),
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
