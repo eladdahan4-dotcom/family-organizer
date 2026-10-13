@@ -316,18 +316,18 @@ describe("a slow AI answer", () => {
     fetchMock().mockImplementation((_u: string, init: any) =>
       new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" }))))
     );
-    jest.useFakeTimers();
+    const ai = require("../../src/ai");
+    ai.aiSettings.timeoutMs = 300; // instead of 45 seconds
     try {
       await openAddTab();
       fireEvent.changeText(messageBox(), "x");
       fireEvent.press(screen.getByText("חילוץ משימות"));
       expect(screen.getByText("קורא…")).toBeTruthy();
-      await jest.advanceTimersByTimeAsync(46_000);
+      expect(await screen.findByText("הקריאה לקחה יותר מדי זמן. נסו שוב, או צלמו רק את החלק החשוב בהודעה.")).toBeTruthy();
+      expect(screen.getByText("חילוץ משימות")).toBeTruthy(); // button is usable again
     } finally {
-      jest.useRealTimers();
+      ai.aiSettings.timeoutMs = ai.AI_TIMEOUT_MS;
     }
-    expect(await screen.findByText("הקריאה לקחה יותר מדי זמן. נסו שוב, או צלמו רק את החלק החשוב בהודעה.")).toBeTruthy();
-    expect(screen.getByText("חילוץ משימות")).toBeTruthy(); // button is usable again
   });
 });
 

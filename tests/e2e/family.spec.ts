@@ -130,7 +130,7 @@ test("two parents run the family board together", async ({ browser }) => {
   await expect(elad.getByText("הוספה ללוח", { exact: true })).toBeVisible({ timeout: 90_000 });
   await shot(elad, "text-preview");
   // Fix what the AI understood before saving.
-  await elad.getByText(/25 ₪/).first().click();
+  await elad.getByRole("button").filter({ hasText: /25 ₪/ }).first().click(); // the preview item, not the message box
   await expect(elad.getByText("תיקון לפני הוספה", { exact: true })).toBeVisible();
   await elad.getByPlaceholder("משימה חדשה, למשל: להביא 20 ₪ לטיול").fill("להעביר 30 ₪ לטיול");
   await elad.getByText("עדכון", { exact: true }).click();

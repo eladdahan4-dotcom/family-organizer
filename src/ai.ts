@@ -11,8 +11,9 @@ const ENDPOINT = (model: string) =>
   model +
   ":generateContent";
 
-/** Longest wait for one AI answer before giving up with a clear message. */
+/** Longest wait for one AI answer before giving up with a clear message (tests may lower it). */
 export const AI_TIMEOUT_MS = 45_000;
+export const aiSettings = { timeoutMs: AI_TIMEOUT_MS };
 
 const CATS: Cat[] = ["gan", "school", "home", "other"];
 
@@ -85,7 +86,7 @@ async function post(url: string, payload: string, timeoutMs: number): Promise<Re
 export async function extract(
   text: string,
   image?: { base64: string; mimeType: string },
-  timeoutMs = AI_TIMEOUT_MS
+  timeoutMs = aiSettings.timeoutMs
 ): Promise<Extracted> {
   const parts: any[] = [{ text: buildPrompt(text, !!image) }];
   if (image) parts.push({ inlineData: { mimeType: sniffMime(image.base64, image.mimeType || "image/jpeg"), data: image.base64 } });
