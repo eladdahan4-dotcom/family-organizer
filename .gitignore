@@ -6,3 +6,8 @@ ios/
 *.apk
 npm-debug.*
 .DS_Store
+report/
+dist-e2e/
+tests/e2e/shots/
+tests/e2e/results/
+tests/ai/ai-results.json

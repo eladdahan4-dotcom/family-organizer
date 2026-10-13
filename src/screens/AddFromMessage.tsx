@@ -3,14 +3,14 @@ import { View, Image, Pressable, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { T, Btn, Input, Card, Check, Tag, s } from "../ui";
 import { useTheme } from "../theme";
-import { extract } from "../ai";
+import { extract, AiError } from "../ai";
 import { addMany } from "../firebase";
 import { readImageBase64 } from "../image";
 import { fmtDate } from "../dates";
 import { CAT_LABEL, type Extracted } from "../types";
 import type { Incoming } from "../share";
 
-type Img = { uri: string; mimeType: string };
+type Img = { uri: string; mimeType: string; base64?: string };
 
 export default function AddFromMessage({
   family,
@@ -58,11 +58,11 @@ export default function AddFromMessage({
         const p = await ImagePicker.requestCameraPermissionsAsync();
         if (!p.granted) return setMsg("צריך לאשר גישה למצלמה בהגדרות הטלפון.");
       }
-      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.7 };
+      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, base64: true };
       const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (r.canceled || !r.assets?.length) return;
       const a = r.assets[0];
-      setImg({ uri: a.uri, mimeType: a.mimeType || "image/jpeg" });
+      setImg({ uri: a.uri, mimeType: a.base64 ? "image/jpeg" : a.mimeType || "image/jpeg", base64: a.base64 || undefined });
       setFound(null);
       setMsg("התמונה מוכנה. לחצו ״חילוץ משימות״.");
     } catch {
@@ -75,18 +75,30 @@ export default function AddFromMessage({
     setBusy(true);
     setMsg("קורא את ההודעה…");
     try {
-      const image = img ? { base64: await readImageBase64(img.uri), mimeType: Platform.OS === "web" ? "image/jpeg" : img.mimeType } : undefined;
+      let image: { base64: string; mimeType: string } | undefined;
+      if (img) {
+        try {
+          const b64 = img.base64 || (await readImageBase64(img.uri));
+          image = { base64: b64, mimeType: Platform.OS === "web" ? "image/jpeg" : img.mimeType };
+        } catch (e: any) {
+          setMsg("לא הצלחתי לקרוא את קובץ התמונה. נסו לבחור אותה שוב מהגלריה. (קריאה: " + String(e?.message || e).slice(0, 60) + ")");
+          return;
+        }
+      }
       const r = await extract(text.trim(), image);
       setFound(r);
       setMsg(r.tasks.length || r.shopping.length ? "" : "לא נמצאו משימות בהודעה.");
     } catch (e: any) {
-      const m = String(e?.message || e);
+      const m = String(e?.message || e).slice(0, 120);
+      const kind = e instanceof AiError ? e.kind : "other";
       setMsg(
-        /quota|429|RESOURCE_EXHAUSTED/i.test(m)
-          ? "הגעתם למגבלת השימוש היומית בחילוץ החכם. נסו שוב מאוחר יותר."
-          : /network|fetch/i.test(m)
+        kind === "quota"
+          ? "הגעתם למגבלת השימוש בחילוץ החכם. נסו שוב בעוד כמה דקות."
+          : kind === "network"
           ? "אין חיבור לאינטרנט. נסו שוב."
-          : "החילוץ לא הצליח. נסו שוב או קצרו את הטקסט. (" + m.slice(0, 80) + ")"
+          : kind === "setup"
+          ? "החילוץ החכם לא מופעל בפרויקט Firebase. (" + m + ")"
+          : "החילוץ לא הצליח. נסו שוב. (" + m + ")"
       );
     } finally {
       setBusy(false);

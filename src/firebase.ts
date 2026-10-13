@@ -11,6 +11,7 @@ import {
   getDoc,
   arrayUnion,
   writeBatch,
+  connectFirestoreEmulator,
   Firestore,
 } from "firebase/firestore";
 import { firebaseConfig, isConfigured } from "./config";
@@ -18,14 +19,22 @@ import type { Task, ShopItem } from "./types";
 
 let _db: Firestore | null = null;
 
+// Tests point the app at a local Firestore emulator ("127.0.0.1:8080"); never set in real builds.
+const EMULATOR = process.env.EXPO_PUBLIC_FIRESTORE_EMULATOR || "";
+
 export function app() {
-  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+  if (getApps().length) return getApp();
+  return initializeApp(EMULATOR ? { ...firebaseConfig, projectId: "demo-family" } : firebaseConfig);
 }
 
 export function db(): Firestore {
   if (!_db) {
     // Long-polling auto-detect keeps live updates working on Android networks and in WebViews.
     _db = initializeFirestore(app(), { experimentalAutoDetectLongPolling: true });
+    if (EMULATOR) {
+      const [host, port] = EMULATOR.split(":");
+      connectFirestoreEmulator(_db, host, Number(port));
+    }
   }
   return _db;
 }
