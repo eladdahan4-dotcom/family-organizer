@@ -4,5 +4,5 @@ module.exports = {
   testEnvironment: "node",
   testMatch: ["<rootDir>/tests/ai/**/*.test.ts"],
   transform: { "^.+\\.tsx?$": ["ts-jest", { tsconfig: { esModuleInterop: true, module: "commonjs", target: "es2020", strict: false, skipLibCheck: true } }] },
-  testTimeout: 120000,
+  testTimeout: 300000,
 };

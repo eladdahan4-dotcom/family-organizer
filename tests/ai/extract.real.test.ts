@@ -5,11 +5,29 @@
  */
 import fs from "fs";
 import path from "path";
-import { extract } from "../../src/ai";
+import { extract as realExtract, AiError } from "../../src/ai";
 import { iso } from "../../src/dates";
 import type { Extracted } from "../../src/types";
 
 jest.retryTimes(2, { logErrorsBeforeRetry: true });
+
+// The free Gemini tier allows only a few requests per minute: space the calls out and,
+// if the limit is hit anyway, wait and try again (the app itself shows a "try again" message).
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function extract(...args: Parameters<typeof realExtract>) {
+  for (let attempt = 0; ; attempt++) {
+    await sleep(8000);
+    try {
+      return await realExtract(...args);
+    } catch (e) {
+      if (e instanceof AiError && e.kind === "quota" && attempt < 4) {
+        await sleep(30000);
+        continue;
+      }
+      throw e;
+    }
+  }
+}
 
 const results: Record<string, any> = {};
 afterAll(() => {

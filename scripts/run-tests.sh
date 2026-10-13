@@ -26,6 +26,7 @@ run web-build-for-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 BASE_URL
 run database-and-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 npx firebase emulators:exec --only firestore --project demo-family \
   "npx jest -c jest.integration.config.js --ci --forceExit; a=\$?; npx playwright test -c tests/e2e/playwright.config.ts; b=\$?; exit \$((a || b))"
 
+sleep 60  # let the free AI quota recover after the end-to-end test
 run ai-real npx jest -c jest.ai.config.js --ci --forceExit
 
 # Pull out the lines that matter for a quick read.
