@@ -9,6 +9,9 @@ jest.mock("../../src/firebase", () => {
   return makeFakeFirebase(jest.requireActual("../../src/codes"));
 });
 
+// Reminders have their own tests (reminders.test.ts); screens use a no-op.
+jest.mock("../../src/notify", () => ({ syncReminders: jest.fn() }));
+
 jest.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: null })),
   launchCameraAsync: jest.fn(async () => ({ canceled: true, assets: null })),

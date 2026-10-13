@@ -49,16 +49,18 @@ function watch(kind: Kind) {
 
 /** Seeds a family directly (as if created earlier). */
 export function seedFamily(code: string, members: string[] = []) {
-  store.families[code] = { members };
+  store.families[code] = { members: members.length ? members : store.families[code]?.members || [] };
 }
 
 export function seedTask(fam: string, t: Record<string, any>) {
+  if (!store.families[fam]) seedFamily(fam);
   const id = "t" + ++seq;
   col("tasks", fam)[id] = { title: "", date: "", time: "", cat: "home", who: "", done: false, createdBy: "", createdAt: seq, ...t };
   return id;
 }
 
 export function seedShop(fam: string, s: Record<string, any>) {
+  if (!store.families[fam]) seedFamily(fam);
   const id = "s" + ++seq;
   col("shop", fam)[id] = { name: "", qty: "", done: false, createdBy: "", createdAt: seq, ...s };
   return id;

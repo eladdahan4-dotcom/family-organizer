@@ -34,11 +34,11 @@ test("two parents run the family board together", async ({ browser }) => {
   // ---------- Elad creates the board ----------
   const elad = await browser.newPage();
   await elad.goto("/");
-  await expect(elad.getByText("ברוכים הבאים ללוח המשפחה")).toBeVisible();
+  await expect(elad.getByText("ברוכים הבאים ללוח המשפחה", { exact: true })).toBeVisible();
   await shot(elad, "welcome");
   await elad.getByPlaceholder("למשל: אלעד").fill("אלעד");
-  await elad.getByText("יצירת לוח חדש למשפחה").click();
-  await expect(elad.getByText("עוד אין משימות")).toBeVisible();
+  await elad.getByText("יצירת לוח חדש למשפחה", { exact: true }).click();
+  await expect(elad.getByText("עוד אין משימות", { exact: true })).toBeVisible();
 
   // Family code from the settings screen.
   await tab(elad, /^הגדרות/);
@@ -68,10 +68,10 @@ test("two parents run the family board together", async ({ browser }) => {
   // ---------- Pasted WhatsApp text → real AI ----------
   await tab(elad, /^\+ הודעה/);
   await elad.getByPlaceholder(/^לדוגמה: הורים יקרים/).fill(GAN_TEXT);
-  await elad.getByText("חילוץ משימות").click();
-  await expect(elad.getByText("הוספה ללוח")).toBeVisible({ timeout: 90_000 });
+  await elad.getByText("חילוץ משימות", { exact: true }).click();
+  await expect(elad.getByText("הוספה ללוח", { exact: true })).toBeVisible({ timeout: 90_000 });
   await shot(elad, "text-preview");
-  await elad.getByText("הוספה ללוח").click();
+  await elad.getByText("הוספה ללוח", { exact: true }).click();
   await expect(elad.getByText(/פיג/).first()).toBeVisible();
   await shot(elad, "text-saved");
   const afterText = await stored(CODE, "tasks");
@@ -81,13 +81,13 @@ test("two parents run the family board together", async ({ browser }) => {
   // ---------- Photo of a school letter → real AI ----------
   await tab(elad, /^\+ הודעה/);
   const chooser = elad.waitForEvent("filechooser");
-  await elad.getByText("📷 תמונה מהגלריה").click();
+  await elad.getByText("📷 תמונה מהגלריה", { exact: true }).click();
   await (await chooser).setFiles(path.join(__dirname, "../fixtures/school-notice.jpg"));
-  await expect(elad.getByText("הסרת התמונה")).toBeVisible();
-  await elad.getByText("חילוץ משימות").click();
-  await expect(elad.getByText("הוספה ללוח")).toBeVisible({ timeout: 90_000 });
+  await expect(elad.getByText("הסרת התמונה", { exact: true })).toBeVisible();
+  await elad.getByText("חילוץ משימות", { exact: true }).click();
+  await expect(elad.getByText("הוספה ללוח", { exact: true })).toBeVisible({ timeout: 90_000 });
   await shot(elad, "image-preview");
-  await elad.getByText("הוספה ללוח").click();
+  await elad.getByText("הוספה ללוח", { exact: true }).click();
   await expect(elad.getByText(/אסיפ/).first()).toBeVisible();
   await shot(elad, "image-saved");
   const afterImage = await stored(CODE, "tasks");
@@ -118,8 +118,8 @@ test("two parents run the family board together", async ({ browser }) => {
   await tab(shira, /^קניות/);
   await row(shira, "חלב 3%").getByRole("checkbox").click();
   await tab(elad, /^קניות/);
-  await expect(elad.getByText("ניקוי מה שנקנה")).toBeVisible();
-  await elad.getByText("ניקוי מה שנקנה").click();
+  await expect(elad.getByText("ניקוי מה שנקנה", { exact: true })).toBeVisible();
+  await elad.getByText("ניקוי מה שנקנה", { exact: true }).click();
   await expect(shira.getByText("חלב 3%")).toHaveCount(0);
   await shot(shira, "shira-milk-cleared");
   expect((await stored(CODE, "shop")).map((s: any) => s.name)).not.toContain("חלב 3%");

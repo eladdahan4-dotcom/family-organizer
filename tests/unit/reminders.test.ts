@@ -23,7 +23,7 @@ const task = (p: Partial<Task>): Task => ({
 function load() {
   let mod: typeof import("../../src/notify.native");
   jest.isolateModules(() => {
-    mod = require("../../src/notify.native");
+    mod = jest.requireActual("../../src/notify.native");
   });
   return mod!;
 }
