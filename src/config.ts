@@ -3,12 +3,12 @@
 // by the Firestore rules in firestore.rules. Fill them in from the Firebase console:
 // Project settings → Your apps → Web app → SDK setup and configuration → Config.
 export const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME",
+  apiKey: "AIzaSyACe9n8HHmdJwDUelf3fUmSt0ypbx59JxY",
+  authDomain: "family-board-40de6.firebaseapp.com",
+  projectId: "family-board-40de6",
+  storageBucket: "family-board-40de6.firebasestorage.app",
+  messagingSenderId: "843131632426",
+  appId: "1:843131632426:web:9280c47db938643b7c7c53",
 };
 
 export const isConfigured = !firebaseConfig.apiKey.startsWith("REPLACE");
