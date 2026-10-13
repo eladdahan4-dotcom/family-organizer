@@ -19,7 +19,7 @@ run() {
 # Type check is informational only.
 npx tsc --noEmit > report/typecheck.log 2>&1 && echo "- ✅ typecheck" >> $SUMMARY || echo "- ⚠️ typecheck (see typecheck.log, not blocking)" >> $SUMMARY
 
-run unit npx jest -c jest.config.js --ci --forceExit
+run unit timeout 900 npx jest -c jest.config.js --ci --forceExit --verbose
 
 run web-build-for-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 BASE_URL= npx expo export -p web --output-dir dist-e2e
 
