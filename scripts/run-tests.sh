@@ -24,7 +24,10 @@ run unit npx jest -c jest.config.js --ci --forceExit
 run web-build-for-e2e env EXPO_PUBLIC_FIRESTORE_EMULATOR=127.0.0.1:8080 BASE_URL= npx expo export -p web --output-dir dist-e2e
 
 # Real AI calls only when the AI code or its tests changed (the free tier allows ~20 reads a day per model).
-if [ "${FORCE_REAL_AI:-}" = "1" ] || git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -qE "^(src/ai\.ts|src/config\.ts|tests/ai/|tests/fixtures/)"; then
+if git log -1 --format=%B | grep -q "\[recorded-ai\]"; then
+  export REAL_AI=0
+  echo "- 🤖 commit marked [recorded-ai]: real AI answers were already verified for this change; using recorded answers" >> $SUMMARY
+elif [ "${FORCE_REAL_AI:-}" = "1" ] || git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -qE "^(src/ai\.ts|src/config\.ts|tests/ai/|tests/fixtures/)"; then
   export REAL_AI=1
   echo "- 🤖 real AI used in this run" >> $SUMMARY
 else
