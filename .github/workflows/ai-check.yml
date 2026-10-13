@@ -1,0 +1,25 @@
+name: AI quota check
+# Diagnostic: one request to each model, full answer saved to the build-logs branch (ai-check.txt).
+on:
+  push:
+    branches: [diag]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          KEY=$(grep -o 'apiKey: "[^"]*"' src/config.ts | cut -d'"' -f2)
+          PROJ=$(grep -o 'projectId: "[^"]*"' src/config.ts | cut -d'"' -f2)
+          for M in gemini-3.8-flash gemini-flash-latest gemini-3.8-flash-lite gemini-flash-lite-latest; do
+            echo "=== $M ($(date -u +%H:%M:%S))" >> /tmp/out.txt
+            curl -s -m 60 -X POST "https://firebasevertexai.googleapis.com/v1beta/projects/$PROJ/models/$M:generateContent" \
+              -H "Content-Type: application/json" -H "x-goog-api-key: $KEY" \
+              -d '{"contents":[{"role":"user","parts":[{"text":"Reply with the single word OK"}]}]}' >> /tmp/out.txt
+            echo >> /tmp/out.txt
+          done
+          git config user.name build-bot && git config user.email build-bot@users.noreply.github.com
+          git fetch origin build-logs && git checkout -f build-logs
+          cp /tmp/out.txt ai-check.txt && git add ai-check.txt && git commit -qm "ai check" && git push -q origin HEAD:build-logs
