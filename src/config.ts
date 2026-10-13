@@ -13,5 +13,7 @@ export const firebaseConfig = {
 
 export const isConfigured = !firebaseConfig.apiKey.startsWith("REPLACE");
 
-// Gemini model used to read messages and images (through Firebase AI Logic, free tier).
-export const AI_MODEL = "gemini-2.5-flash";
+// Gemini models used to read messages and images (through Firebase AI Logic, free tier).
+// The first one is used; if Google retires it, the next is tried automatically.
+export const AI_MODELS = ["gemini-3.8-flash", "gemini-flash-latest"];
+export const AI_MODEL = AI_MODELS[0];

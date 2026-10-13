@@ -4,7 +4,7 @@
 module.exports = {
   preset: "jest-expo",
   testMatch: ["<rootDir>/tests/unit/**/*.test.ts?(x)"],
-  setupFiles: ["<rootDir>/tests/unit/setup.ts"],
+  setupFilesAfterEnv: ["<rootDir>/tests/unit/setup.ts"],
   transformIgnorePatterns: [
     "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|expo-.*|@react-native-async-storage/.*|firebase|@firebase/.*)",
   ],

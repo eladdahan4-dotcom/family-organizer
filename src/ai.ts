@@ -1,4 +1,4 @@
-import { firebaseConfig, AI_MODEL } from "./config";
+import { firebaseConfig, AI_MODELS } from "./config";
 import { DAYS, iso, isIsoDate, isTime } from "./dates";
 import type { Extracted, Cat } from "./types";
 
@@ -57,25 +57,32 @@ export async function extract(text: string, image?: { base64: string; mimeType: 
   const parts: any[] = [{ text: buildPrompt(text, !!image) }];
   if (image) parts.push({ inlineData: { mimeType: sniffMime(image.base64, image.mimeType || "image/jpeg"), data: image.base64 } });
 
-  let res: Response;
-  try {
-    res = await fetch(ENDPOINT(AI_MODEL), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": firebaseConfig.apiKey,
-        "X-Firebase-AppId": firebaseConfig.appId,
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
-      }),
-    });
-  } catch (e: any) {
-    throw new AiError("network", String(e?.message || e));
-  }
+  const payload = JSON.stringify({
+    contents: [{ role: "user", parts }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+  });
 
-  const body = await res.text();
+  let res: Response | null = null;
+  let body = "";
+  for (const model of AI_MODELS) {
+    try {
+      res = await fetch(ENDPOINT(model), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": firebaseConfig.apiKey,
+          "X-Firebase-AppId": firebaseConfig.appId,
+        },
+        body: payload,
+      });
+    } catch (e: any) {
+      throw new AiError("network", String(e?.message || e));
+    }
+    body = await res.text();
+    // A retired or unknown model answers 404: try the next one.
+    if (res.status !== 404) break;
+  }
+  if (!res) throw new AiError("other", "no model configured");
   if (!res.ok) {
     const kind = res.status === 429 ? "quota" : res.status === 403 || res.status === 404 ? "setup" : "other";
     throw new AiError(kind, res.status + " " + body.slice(0, 200));

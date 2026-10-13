@@ -1,5 +1,5 @@
 import { extract, AiError } from "../../src/ai";
-import { firebaseConfig, AI_MODEL } from "../../src/config";
+import { firebaseConfig, AI_MODELS } from "../../src/config";
 
 const geminiReply = (obj: any, fenced = false) => ({
   ok: true,
@@ -18,7 +18,7 @@ describe("extract() talks to Gemini correctly", () => {
     await extract("מחר טיול");
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
     expect(url).toBe(
-      "https://firebasevertexai.googleapis.com/v1beta/projects/" + firebaseConfig.projectId + "/models/" + AI_MODEL + ":generateContent"
+      "https://firebasevertexai.googleapis.com/v1beta/projects/" + firebaseConfig.projectId + "/models/" + AI_MODELS[0] + ":generateContent"
     );
     expect(init.method).toBe("POST");
     expect(init.headers["x-goog-api-key"]).toBe(firebaseConfig.apiKey);
@@ -48,11 +48,26 @@ describe("extract() talks to Gemini correctly", () => {
   test.each([
     [429, "quota"],
     [403, "setup"],
-    [404, "setup"],
     [500, "other"],
   ])("HTTP %s is reported as %s", async (status, kind) => {
     (global.fetch as jest.Mock).mockResolvedValueOnce(httpError(status as number));
     await expect(extract("x")).rejects.toMatchObject({ kind });
+  });
+
+  test("a retired model (404) falls back to the next model", async () => {
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce(httpError(404, "model is no longer available"))
+      .mockResolvedValueOnce(geminiReply({ tasks: [{ title: "ok", date: "", time: "", cat: "home" }], shopping: [] }));
+    const r = await extract("x");
+    expect(r.tasks[0].title).toBe("ok");
+    const urls = (global.fetch as jest.Mock).mock.calls.map((c) => c[0]);
+    expect(urls[0]).toContain("/models/" + AI_MODELS[0] + ":");
+    expect(urls[1]).toContain("/models/" + AI_MODELS[1] + ":");
+  });
+
+  test("if every model is unavailable it is reported as setup", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(httpError(404));
+    await expect(extract("x")).rejects.toMatchObject({ kind: "setup" });
   });
 
   test("no internet is reported as network", async () => {
