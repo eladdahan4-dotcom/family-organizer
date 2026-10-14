@@ -146,6 +146,12 @@ export async function extract(
 /** Finds the lists in the AI's answer, whatever shape it chose (object with keys, plain list, wrapped). */
 function lists(j: any): { tasks: any[]; shopping: any[] } {
   if (Array.isArray(j)) {
+    // [{ "tasks": [...], "shopping": [...] }]: the whole answer wrapped in a list.
+    const wrapped = j.filter((x) => x && typeof x === "object" && (Array.isArray(x.tasks) || Array.isArray(x.shopping)));
+    if (wrapped.length) {
+      const parts = wrapped.map(lists);
+      return { tasks: parts.flatMap((p) => p.tasks), shopping: parts.flatMap((p) => p.shopping) };
+    }
     return {
       tasks: j.filter((x) => x && (x.title || x.task) && !x.qty),
       shopping: j.filter((x) => x && x.name && !x.title),
