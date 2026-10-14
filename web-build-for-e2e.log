@@ -1,0 +1,17 @@
+[expo-share-intent] IOS module disabled
+Starting Metro Bundler
+Web ./index.ts ▓▓▓▓▓░░░░░░░░░░░ 32.7% (45/79)
+| [expo-share-intent] IOS module disabled
+Web ./index.ts ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.8% (173/200)
+Web ./index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 83.7% (194/212)
+Web ./index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (244/244)
+Web Bundled 12941ms index.ts (244 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-0744cce3431dad750b9f81728d14b92a.js (1.21 MB)
+
+› Files (2):
+index.html (1.23 kB)
+metadata.json (49 B)
+
+Exported: dist-e2e

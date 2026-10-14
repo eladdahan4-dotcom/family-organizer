@@ -1,0 +1,6 @@
+src/EditExtracted.tsx(59,34): error TS2339: Property 'msg' does not exist on type 'Checked'.
+  Property 'msg' does not exist on type '{ ok: true; fields: Omit<Task, "id" | "done" | "createdAt" | "createdBy">; }'.
+src/EditItem.tsx(51,32): error TS2339: Property 'msg' does not exist on type 'Checked'.
+  Property 'msg' does not exist on type '{ ok: true; fields: Omit<Task, "id" | "done" | "createdAt" | "createdBy">; }'.
+src/screens/Tasks.tsx(40,31): error TS2339: Property 'msg' does not exist on type 'Checked'.
+  Property 'msg' does not exist on type '{ ok: true; fields: Omit<Task, "id" | "done" | "createdAt" | "createdBy">; }'.

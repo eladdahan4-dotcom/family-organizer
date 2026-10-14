@@ -1,0 +1,99 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-family", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[33m[1m⚠ [22m[39m It appears you are running in a CI environment. You can avoid downloading the Firestore Emulator repeatedly by caching the /home/runner/.cache/firebase/emulators directory.
+[36m[1mi  firestore:[22m[39m downloading cloud-firestore-emulator-v1.19.8.jar...
+
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m✔  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnpx jest -c jest.integration.config.js --ci --forceExit; a=$?; npx playwright test -c tests/e2e/playwright.config.ts; b=$?; exit $((a || b))[22m
+  console.warn
+    [2026-10-14T05:54:28.893Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x2cbd721b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+    false for 'create' @ L7, false for 'update' @ L7
+
+      at Logger.defaultLogHandler [as _logHandler] (node_modules/@firebase/logger/src/logger.ts:110:57)
+      at Logger.warn (node_modules/@firebase/logger/src/logger.ts:201:10)
+      at logWarn (node_modules/@firebase/firestore/src/util/log.ts:69:15)
+      at ClientDuplexStreamImpl.<anonymous> (node_modules/@firebase/firestore/src/platform/node/grpc_connection.ts:337:9)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client.ts:705:18)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client-interceptors.ts:419:48)
+      at node_modules/@grpc/grpc-js/src/resolving-call.ts:132:24
+
+  console.warn
+    [2026-10-14T05:54:29.146Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x2cbd721d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+    false for 'delete' @ L8
+
+      at Logger.defaultLogHandler [as _logHandler] (node_modules/@firebase/logger/src/logger.ts:110:57)
+      at Logger.warn (node_modules/@firebase/logger/src/logger.ts:201:10)
+      at logWarn (node_modules/@firebase/firestore/src/util/log.ts:69:15)
+      at ClientDuplexStreamImpl.<anonymous> (node_modules/@firebase/firestore/src/platform/node/grpc_connection.ts:337:9)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client.ts:705:18)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client-interceptors.ts:419:48)
+      at node_modules/@grpc/grpc-js/src/resolving-call.ts:132:24
+
+  console.warn
+    [2026-10-14T05:54:29.163Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x2cbd721e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+    false for 'create' @ L11, false for 'update' @ L11
+
+      at Logger.defaultLogHandler [as _logHandler] (node_modules/@firebase/logger/src/logger.ts:110:57)
+      at Logger.warn (node_modules/@firebase/logger/src/logger.ts:201:10)
+      at logWarn (node_modules/@firebase/firestore/src/util/log.ts:69:15)
+      at ClientDuplexStreamImpl.<anonymous> (node_modules/@firebase/firestore/src/platform/node/grpc_connection.ts:337:9)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client.ts:705:18)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client-interceptors.ts:419:48)
+      at node_modules/@grpc/grpc-js/src/resolving-call.ts:132:24
+
+  console.warn
+    [2026-10-14T05:54:29.184Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x2cbd721f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+    evaluation error at L11:31 for 'create' @ L11, evaluation error at L11:31 for 'update' @ L11, false for 'create' @ L11
+
+      at Logger.defaultLogHandler [as _logHandler] (node_modules/@firebase/logger/src/logger.ts:110:57)
+      at Logger.warn (node_modules/@firebase/logger/src/logger.ts:201:10)
+      at logWarn (node_modules/@firebase/firestore/src/util/log.ts:69:15)
+      at ClientDuplexStreamImpl.<anonymous> (node_modules/@firebase/firestore/src/platform/node/grpc_connection.ts:337:9)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client.ts:705:18)
+      at Object.onReceiveStatus (node_modules/@grpc/grpc-js/src/client-interceptors.ts:419:48)
+      at node_modules/@grpc/grpc-js/src/resolving-call.ts:132:24
+
+PASS tests/integration/firestore.test.ts (6.216 s)
+  family board in the real database
+    ✓ creating and joining a family records both members (1358 ms)
+    ✓ joining with a code that does not exist fails (24 ms)
+    ✓ a task is stored under families/<code>/tasks with every field (330 ms)
+    ✓ a meeting keeps its type, time range and place; editing changes only what was edited (90 ms)
+    ✓ mark done and delete a task (73 ms)
+    ✓ shopping items go to families/<code>/shop and can be cleared (81 ms)
+    ✓ items extracted from a message are split into tasks and shopping in one save (55 ms)
+    ✓ families are separate from each other (55 ms)
+    ○ skipped live updates (covered by the two-browser end-to-end test)
+  security rules
+    ✓ nobody can list all families (36 ms)
+    ✓ a short or guessable code cannot be created (259 ms)
+    ✓ a family board cannot be deleted from the app (17 ms)
+    ✓ only tasks and shop lists exist inside a family (16 ms)
+    ✓ cannot write tasks into a family that does not exist (21 ms)
+    ✓ with the right code, reading and writing works (32 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       1 skipped, 14 passed, 15 total
+Snapshots:   0 total
+Time:        6.425 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+[WebServer] 127.0.0.1 - - [14/Oct/2026 08:54:30] "GET / HTTP/1.1" 200 -
+
+Running 1 test using 1 worker
+
+[WebServer] 127.0.0.1 - - [14/Oct/2026 08:54:31] "GET / HTTP/1.1" 200 -
+[WebServer] 127.0.0.1 - - [14/Oct/2026 08:54:31] "GET /_expo/static/js/web/index-0744cce3431dad750b9f81728d14b92a.js HTTP/1.1" 200 -
+AI RESPONSE 200 {"candidates":[{"content":{"parts":[{"text":"{\"tasks\":[{\"kind\":\"task\",\"title\":\"פיג'מה ובובה אהובה לגן\",\"date\":\"2026-10-16\",\"time\":\"\",\"cat\":\"gan\"},{\"kind\":\"task\",\"title\":\"להעביר 25 ₪ לטיול לחוות החיות\",\"date\":\"2026-10-21\",\"time\":\"\",\"cat\":\"gan\"}],\"shopping\":[{\"name\":\"בקבוק מיץ\",\"qty\":\"1\"},{\"name\":\"שקית במבה\",\"qty\":\"1\"}]}"}]}}]}
+AI RESPONSE 200 {"candidates":[{"content":{"parts":[{"text":"{\"tasks\":[{\"kind\":\"task\",\"title\":\"חולצה לבנה וכובע לסיור בגן הבוטני\",\"date\":\"2026-10-15\",\"time\":\"\",\"cat\":\"school\"},{\"kind\":\"task\",\"title\":\"להחזיר טופס אישור חתום\",\"date\":\"2026-10-20\",\"time\":\"\",\"cat\":\"school\"},{\"kind\":\"event\",\"title\":\"אסיפת הורים בכיתה\",\"date\":\"2026-10-19\",\"time\":\"18:30\",\"endTime\":\"19:30\",\"location\":\"בכיתה\",\"cat\":\"school\"}],\"shopping\":[]}"}]}}]}
+[WebServer] 127.0.0.1 - - [14/Oct/2026 08:54:35] "GET /?family=3ADL8CPZ6R2PX8NJRFYQ HTTP/1.1" 200 -
+[WebServer] 127.0.0.1 - - [14/Oct/2026 08:54:35] "GET /_expo/static/js/web/index-0744cce3431dad750b9f81728d14b92a.js HTTP/1.1" 200 -
+  ✓  1 family.spec.ts:70:5 › two parents run the family board together (6.4s)
+
+  1 passed (7.5s)
+[32m[1m✔ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

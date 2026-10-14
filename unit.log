@@ -1,0 +1,172 @@
+PASS tests/unit/logic.test.ts
+  dates
+    ✓ iso / parseIso round trip (90 ms)
+    ✓ dayDiff counts calendar days from today (1 ms)
+    ✓ fmtDate shows Hebrew day letter and day.month (1 ms)
+    ✓ parseUserDate understands the formats people type (2 ms)
+    ✓ parseUserDate without a year picks the upcoming date (1 ms)
+    ✓ validators (1 ms)
+  AI prompt and response parsing
+    ✓ prompt contains today, the coming week mapping and the message (2 ms)
+    ✓ prompt mentions the image when one is attached (1 ms)
+    ✓ parseExtracted keeps valid items and cleans bad fields (3 ms)
+    ✓ parseExtracted keeps meeting details and drops impossible ones (1 ms)
+    ✓ prompt explains meetings vs tasks (1 ms)
+    ✓ parseExtracted understands other answer shapes the AI sometimes uses (1 ms)
+    ✓ parseExtracted handles missing lists and rejects non-JSON (24 ms)
+    ✓ sniffMime detects the real image type (1 ms)
+  family codes
+    ✓ new codes are 20 unambiguous characters and unique (25 ms)
+    ✓ codes typed with dashes, spaces or lowercase are normalized
+  content shared from other apps
+    ✓ WhatsApp text (1 ms)
+    ✓ image path without scheme gets file:// (1 ms)
+    ✓ content:// uris are kept, non-images ignored, empty shares dropped (1 ms)
+
+PASS tests/unit/ai.test.ts
+  extract() talks to Gemini correctly
+    ✓ sends text to the project's Firebase AI endpoint with the API key (3 ms)
+    ✓ attaches the image with its real type (1 ms)
+    ✓ returns parsed tasks and shopping, also when wrapped in ```json (1 ms)
+    ✓ HTTP 429 from every model is reported as quota
+    ✓ HTTP 403 from every model is reported as setup (1 ms)
+    ✓ HTTP 400 from every model is reported as other (4 ms)
+    ✓ HTTP 500 from every model is reported as other (1 ms)
+    ✓ a retired model (404) falls back to the next model (1 ms)
+    ✓ daily quota on the first model (429) falls back to the next model (1 ms)
+    ✓ a server error does not waste the other model's quota
+    ✓ if every model is unavailable it is reported as setup (1 ms)
+    ✓ asks the model to think less, for speed (1 ms)
+    ✓ a model that rejects the speed setting is asked again without it (1 ms)
+    ✓ a model that doesn't answer in time is skipped for the next one (32 ms)
+    ✓ no answer in time is reported as timeout, not as no internet (62 ms)
+    ✓ no internet is reported as network (1 ms)
+    ✓ an unreadable answer is reported as bad (6 ms)
+
+PASS tests/unit/calendar.test.tsx (8.31 s)
+  calendar tab
+    ✓ opens on this month with today selected (5245 ms)
+    ✓ days with items show how many; tapping a day lists meetings first, by time (133 ms)
+    ✓ items without a date are not on the calendar (108 ms)
+    ✓ move between months and back to today (118 ms)
+    ✓ add a meeting straight onto the chosen day (166 ms)
+    ✓ a task can also be added to a day (158 ms)
+    ✓ tap an item in the calendar to edit it; moving its date moves it (183 ms)
+    ✓ tick a task as done from the calendar (133 ms)
+
+PASS tests/unit/items.test.ts
+  checking what was typed in the form
+    ✓ a simple task (1 ms)
+    ✓ a meeting with start, end and place
+    ✓ tasks never keep meeting-only fields (1 ms)
+    ✓ refuses {"title":""}
+    ✓ refuses {"title":"x","date":"מחרתיים"}
+    ✓ refuses {"title":"x","time":"8"}
+    ✓ refuses {"kind":"event","title":"x"}
+    ✓ refuses {"kind":"event","title":"x","date":"15.10","endTime":"9"}
+    ✓ refuses {"kind":"event","title":"x","date":"15.10","endTime":"19:00"}
+    ✓ refuses {"kind":"event","title":"x","date":"15.10","time":"19:00","endTime":"18:00"}
+    ✓ editing starts from the saved values (1 ms)
+  meetings over time
+    ✓ a meeting whose day passed is 'past', a task is not
+    ✓ time label shows the range (1 ms)
+    ✓ a day's items are ordered by time, untimed last
+  month grid
+    ✓ October 2026 starts on Thursday and has 31 days (1 ms)
+    ✓ February in a leap year (1 ms)
+
+PASS tests/unit/reminders.test.ts
+  reminders on the phone
+    ✓ task with a time: reminder one hour before (22 ms)
+    ✓ task without a time: reminder at 07:30 that morning (2 ms)
+    ✓ meetings: marked with a calendar icon and the place in the text (2 ms)
+    ✓ no reminders for done, past or undated tasks (2 ms)
+    ✓ old reminders are cleared before scheduling, nearest first (4 ms)
+    ✓ rapid changes are combined into one update (3 ms)
+    ✓ if notifications are not allowed nothing is scheduled (2 ms)
+
+PASS tests/unit/tasks.test.tsx (13.19 s)
+  tasks tab: adding
+    ✓ add a task for tomorrow, kindergarten, assigned to both (5350 ms)
+    ✓ typed date and time are saved in the right format (159 ms)
+    ✓ default task: no date, category home, assigned to me (116 ms)
+    ✓ bad date or time is refused with a message (105 ms)
+    ✓ empty title adds nothing (69 ms)
+    ✓ partner's name appears as an assignee option (128 ms)
+  meetings
+    ✓ add a meeting with start, end and place (161 ms)
+    ✓ a meeting needs a date, and must end after it starts (107 ms)
+    ✓ past meetings are not 'late' and not counted, but can be seen (69 ms)
+    ✓ filter: meetings only (65 ms)
+  editing after saving
+    ✓ tap an item, change its title, date and category, save (168 ms)
+    ✓ turn a task into a meeting (146 ms)
+    ✓ a mistake while editing is explained and nothing is saved (75 ms)
+    ✓ cancel keeps everything as it was (77 ms)
+    ✓ delete from the edit window needs a second tap (127 ms)
+  tasks tab: list
+    ✓ tasks are grouped by when they are due (63 ms)
+    ✓ mark done and undo (162 ms)
+    ✓ filters: mine and by category (84 ms)
+    ✓ empty board shows how to start (53 ms)
+
+PASS tests/unit/setup-flow.test.tsx
+  first launch: creating or joining a family board
+    ✓ create a new board: stores the family with my name and opens the tabs (145 ms)
+    ✓ name is required (57 ms)
+    ✓ join an existing board with a code typed with dashes and lowercase (115 ms)
+    ✓ wrong code shows a clear message and does not join (111 ms)
+    ✓ too short code is rejected before contacting the server (62 ms)
+    ✓ reopening the app goes straight to the board (107 ms)
+
+PASS tests/unit/settings.test.tsx
+  settings tab
+    ✓ shows who is on the board and the family code (93 ms)
+    ✓ invite sends the code through the phone's share sheet (120 ms)
+    ✓ leaving needs confirmation and returns to the welcome screen (81 ms)
+
+PASS tests/unit/shop.test.tsx
+  shopping tab
+    ✓ add an item with quantity (151 ms)
+    ✓ tick bought items and clear only them (160 ms)
+    ✓ empty list explains what to do (59 ms)
+
+PASS tests/unit/add-from-message.test.tsx (15.268 s)
+  adding from a message
+    ✓ pasted text → preview → only the ticked items are saved, each in the right list (5387 ms)
+    ✓ a large photo is shrunk before sending, so it uploads and reads fast (250 ms)
+    ✓ a small screenshot is only compressed, not resized (169 ms)
+    ✓ image + text together are both sent (170 ms)
+    ✓ if shrinking fails, the original file is sent instead (166 ms)
+    ✓ removing the image sends text only (166 ms)
+    ✓ cancelling the gallery changes nothing (85 ms)
+    ✓ camera: photo is used; refused permission shows how to fix (171 ms)
+    ✓ nothing to read gives a hint and calls nothing (58 ms)
+    ✓ message with nothing to do (109 ms)
+    ✓ cancel the preview saves nothing (125 ms)
+    ✓ error: quota (109 ms)
+    ✓ error: setup (108 ms)
+    ✓ error: server (115 ms)
+    ✓ error: no internet (108 ms)
+  fixing what the AI understood, before saving
+    ✓ change title, date, category and who; the fixed version is what gets saved (229 ms)
+    ✓ turn something the AI saw as a task into a meeting (185 ms)
+    ✓ fix a shopping item (193 ms)
+    ✓ a mistake in the fix is explained and the preview is unchanged (139 ms)
+    ✓ remove a wrong item from the list (180 ms)
+  meetings found in a message
+    ✓ are marked as meetings in the preview and saved with time range and place (160 ms)
+  a slow AI answer
+    ✓ stops waiting and explains instead of showing 'reading…' forever (661 ms)
+  sharing into the app from WhatsApp / Gallery
+    ✓ shared text opens the message tab and is read automatically, exactly once (115 ms)
+    ✓ shared screenshot is read from its file and sent as an image (54 ms)
+    ✓ unreadable shared file gives a clear message (55 ms)
+
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+Test Suites: 10 passed, 10 total
+Tests:       123 passed, 123 total
+Snapshots:   0 total
+Time:        16.465 s
+Ran all test suites.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
