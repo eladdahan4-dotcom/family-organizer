@@ -17,7 +17,10 @@ async function extract(...args: Parameters<typeof realExtract>) {
   for (let attempt = 0; ; attempt++) {
     await sleep(8000);
     try {
-      return await realExtract(...args);
+      const t0 = Date.now();
+      const r = await realExtract(...args);
+      timings.push({ ms: Date.now() - t0, model: r.model, image: !!args[1] });
+      return r;
     } catch (e) {
       if (e instanceof AiError && e.kind === "quota" && attempt < 4) {
         await sleep(30000);
@@ -29,8 +32,9 @@ async function extract(...args: Parameters<typeof realExtract>) {
 }
 
 const results: Record<string, any> = {};
+const timings: { ms: number; model?: string; image: boolean }[] = [];
 afterAll(() => {
-  fs.writeFileSync(path.join(__dirname, "ai-results.json"), JSON.stringify(results, null, 2));
+  fs.writeFileSync(path.join(__dirname, "ai-results.json"), JSON.stringify({ ...results, timings }, null, 2));
 });
 
 const img = (f: string) => fs.readFileSync(path.join(__dirname, "../fixtures", f)).toString("base64");
