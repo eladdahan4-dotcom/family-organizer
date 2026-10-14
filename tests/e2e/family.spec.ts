@@ -73,6 +73,13 @@ test("two parents run the family board together", async ({ browser }) => {
   await useRecordedAi(elad);
   const aiRequests: string[] = [];
   elad.on("request", (r) => r.url().includes("firebasevertexai") && aiRequests.push(r.postData() || ""));
+  // Keep the AI's raw answers in the log, to diagnose any misreading.
+  elad.on("response", async (r) => {
+    if (!r.url().includes("firebasevertexai")) return;
+    try {
+      console.log("AI RESPONSE " + r.status() + " " + (await r.text()).slice(0, 1500).replace(/\s+/g, " "));
+    } catch {}
+  });
   await elad.goto("/");
   await expect(elad.getByText("ברוכים הבאים ללוח המשפחה", { exact: true })).toBeVisible();
   await shot(elad, "welcome");

@@ -123,6 +123,19 @@ describe("AI prompt and response parsing", () => {
     expect(p).toContain("location");
   });
 
+  test("parseExtracted understands other answer shapes the AI sometimes uses", () => {
+    const list = parseExtracted(JSON.stringify([{ title: "פיג׳מה", date: "2026-10-15", cat: "gan" }, { name: "במבה", qty: "1" }]));
+    expect(list.tasks.map((t) => t.title)).toEqual(["פיג׳מה"]);
+    expect(list.shopping.map((s) => s.name)).toEqual(["במבה"]);
+    const wrapped = parseExtracted(JSON.stringify({ result: { tasks: [{ title: "אסיפה" }], shopping: [] } }));
+    expect(wrapped.tasks.map((t) => t.title)).toEqual(["אסיפה"]);
+    const other = parseExtracted(JSON.stringify({ items: [{ task: "לחתום" }], shopping_list: [{ name: "חלב" }] }));
+    expect(other.tasks.map((t) => t.title)).toEqual(["לחתום"]);
+    expect(other.shopping.map((s) => s.name)).toEqual(["חלב"]);
+    const chatty = parseExtracted('Here you go: {"tasks":[{"title":"טיול"}],"shopping":[]} hope it helps');
+    expect(chatty.tasks.map((t) => t.title)).toEqual(["טיול"]);
+  });
+
   test("parseExtracted handles missing lists and rejects non-JSON", () => {
     expect(parseExtracted("{}")).toEqual({ tasks: [], shopping: [] });
     expect(() => parseExtracted("sorry, I can't")).toThrow();

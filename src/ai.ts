@@ -143,15 +143,39 @@ export async function extract(
   return { ...parseExtracted(raw), model: usedModel };
 }
 
+/** Finds the lists in the AI's answer, whatever shape it chose (object with keys, plain list, wrapped). */
+function lists(j: any): { tasks: any[]; shopping: any[] } {
+  if (Array.isArray(j)) {
+    return {
+      tasks: j.filter((x) => x && (x.title || x.task) && !x.qty),
+      shopping: j.filter((x) => x && x.name && !x.title),
+    };
+  }
+  if (!j || typeof j !== "object") return { tasks: [], shopping: [] };
+  const tasks = j.tasks ?? j.items ?? j.todos ?? j.events;
+  const shopping = j.shopping ?? j.shoppingList ?? j.shopping_list ?? j.groceries;
+  if (!Array.isArray(tasks) && !Array.isArray(shopping)) {
+    for (const v of Object.values(j)) if (v && typeof v === "object") return lists(v); // e.g. {"result": {...}}
+  }
+  return { tasks: Array.isArray(tasks) ? tasks : [], shopping: Array.isArray(shopping) ? shopping : [] };
+}
+
 export function parseExtracted(raw: string): Extracted {
   let j: any;
   try {
     j = JSON.parse(raw);
   } catch {
-    throw new AiError("bad", "not JSON: " + raw.slice(0, 120));
+    // Sometimes the JSON comes with a sentence around it: take the outermost {...} or [...].
+    const m = raw.match(/[\[{][\s\S]*[\]}]/);
+    try {
+      j = m ? JSON.parse(m[0]) : undefined;
+    } catch {}
+    if (j === undefined) throw new AiError("bad", "not JSON: " + raw.slice(0, 120));
   }
+  const l = lists(j);
   return {
-    tasks: (j.tasks || [])
+    tasks: l.tasks
+      .map((t: any) => (t && !t.title && t.task ? { ...t, title: t.task } : t))
       .filter((t: any) => t && t.title)
       .map((t: any) => {
         const time = isTime(t.time) ? t.time : "";
@@ -167,7 +191,7 @@ export function parseExtracted(raw: string): Extracted {
           pick: true,
         };
       }),
-    shopping: (j.shopping || [])
+    shopping: l.shopping
       .filter((s: any) => s && s.name)
       .map((s: any) => ({ name: String(s.name), qty: s.qty ? String(s.qty) : "", pick: true })),
   };
